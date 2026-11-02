@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Meichel Portfolio</title>
+<meta name="description" content="Meichel — electronics student building sensors, market tools and small apps that measure things honestly.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one dark "desk at night" page. Hero = text + glowing frequency gauge, then datasheet-style project rows. */
+:root {
+  color-scheme: dark;
+  --bg: #070a0f;
+  --surface: #0e141c;
+  --line: #1c2632;
+  --fg: #e4ebf2;
+  --muted: #8a97a6;
+  --accent: #4cc3ff;   /* gauge ring blue */
+  --needle: #ff4a3d;   /* needle / redline */
+  --ok: #5ad19a;
+  --warn: #f2c14e;
+  --display: "Michroma", "Eurostile", "Arial Black", sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; padding-block: env(safe-area-inset-top, 0px) env(safe-area-inset-bottom, 0px); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 16px/1.6 var(--body);
+  margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+  z-index: 10; background: var(--bg);
+}
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+.page { max-width: 1080px; margin: 0 auto; }
+
+header.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding-block: 18px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+}
+.brand { font: 400 15px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--fg); text-decoration: none; }
+nav { display: flex; gap: 22px; flex-wrap: wrap; }
+nav a { color: var(--muted); text-decoration: none; font-size: 14px; }
+nav a:hover { color: var(--fg); }
+
+/* Hero */
+.hero {
+  display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center;
+  padding-block: 48px 72px;
+}
+.hero > * { min-width: 0; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
+h1 {
+  font: 400 clamp(30px, 5vw, 52px)/1.12 var(--display);
+  letter-spacing: -.01em; margin: 18px 0 20px; text-wrap: balance;
+}
+.lede { color: var(--muted); font-size: 18px; max-width: 34em; margin: 0; }
+.lede strong { color: var(--fg); font-weight: 500; }
+.cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 6px;
+  font: 500 14px/1 var(--body); text-decoration: none; border: 1px solid var(--line); color: var(--fg);
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.btn:hover { border-color: var(--accent); }
+
+.gauge-box { position: relative; width: 100%; max-width: 440px; justify-self: center; }
+.gauge-box::before {
+  content: ""; position: absolute; inset: 8%; border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%);
+  filter: blur(24px); z-index: 0;
+}
+#gauge { position: relative; z-index: 1; display: block; width: 100%; aspect-ratio: 1; max-width: 100%; }
+.readout { position: absolute; left: 0; right: 0; bottom: 9%; z-index: 2; text-align: center; }
+.readout .num { font: 500 clamp(22px, 4.2vw, 34px)/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--fg); text-shadow: 0 0 14px color-mix(in srgb, var(--accent) 60%, transparent); }
+.readout .unit { font: 400 13px/1 var(--mono); color: var(--accent); margin-left: 6px; }
+.readout .cap { display: block; margin-top: 8px; font: 400 11px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+/* Sections */
+section { padding-block: 56px; border-top: 1px solid var(--line); }
+h2 { font: 400 clamp(20px, 3vw, 26px)/1.2 var(--display); margin: 0 0 8px; text-wrap: balance; }
+.sec-lede { color: var(--muted); margin: 0 0 36px; max-width: 40em; }
+
+.proj {
+  display: grid; grid-template-columns: 260px 1fr; gap: 32px;
+  padding-block: 32px; border-top: 1px solid var(--line);
+}
+.proj:first-of-type { border-top: 0; padding-top: 0; }
+.proj > * { min-width: 0; }
+.proj h3 { font: 600 20px/1.3 var(--body); margin: 0 0 14px; text-wrap: balance; }
+.spec { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; font: 400 13px/1.45 var(--mono); }
+.spec dt { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: 11px; padding-top: 2px; }
+.spec dd { margin: 0; color: var(--fg); overflow-wrap: anywhere; }
+.chip { display: inline-flex; align-items: center; gap: 6px; }
+.chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--muted)); box-shadow: 0 0 8px var(--c, transparent); }
+.chip.ok { --c: var(--ok); }
+.chip.wip { --c: var(--warn); }
+.chip.sim { --c: var(--accent); }
+.proj .what { margin: 0 0 14px; font-size: 17px; max-width: 40em; }
+.proj ul { margin: 0; padding-left: 18px; color: var(--muted); max-width: 44em; display: grid; gap: 6px; }
+.proj li::marker { color: var(--accent); }
+.proj li b { color: var(--fg); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+.method { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+.method > div { min-width: 0; }
+.method h3 { font: 600 16px/1.3 var(--body); margin: 0 0 8px; }
+.method p { margin: 0; color: var(--muted); font-size: 15px; }
+
+.contact p { color: var(--muted); max-width: 40em; margin: 0 0 20px; }
+footer { padding-block: 28px 40px; border-top: 1px solid var(--line); color: var(--muted); font: 400 12px/1.5 var(--mono); }
+
+@media (max-width: 820px) {
+  .hero { grid-template-columns: 1fr; padding-block: 24px 48px; }
+  .gauge-box { max-width: 360px; }
+  .proj { grid-template-columns: 1fr; gap: 16px; }
+  .method { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header class="top">
+    <a class="brand" href="#top">Meichel</a>
+    <nav aria-label="Sections">
+      <a href="#work">Work</a>
+      <a href="#method">Method</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <div class="hero">
+      <div>
+        <div class="eyebrow">Electronics student · Indonesia</div>
+        <h1>I build circuits and software that measure things.</h1>
+        <p class="lede">A quartz-crystal gas sensor, a stock screener for the IDX, and the small tools around them. <strong>Every project shows its real numbers, including the ones that came out bad.</strong></p>
+        <div class="cta">
+          <a class="btn primary" href="#work">See the work</a>
+          <a class="btn" href="https://github.com/meicheln" target="_blank" rel="noopener">GitHub ↗</a>
+        </div>
+      </div>
+      <figure class="gauge-box" style="margin:0" aria-label="Frequency gauge showing the simulated QCM oscillator at 10.001410 megahertz">
+        <canvas id="gauge"></canvas>
+        <figcaption class="readout">
+          <span class="num" id="freq">10.001410</span><span class="unit">MHz</span>
+          <span class="cap">QCM oscillator · simulated f₀</span>
+        </figcaption>
+      </figure>
+    </div>
+
+    <section id="work">
+      <h2>Work</h2>
+      <p class="sec-lede">Hardware, market tools and apps. The status line on each says exactly how far it got.</p>
+
+      <article class="proj">
+        <div>
+          <h3>QCM Cyclohexane Sensor</h3>
+          <dl class="spec">
+            <dt>Status</dt><dd><span class="chip sim">Designed + simulated</span></dd>
+            <dt>Parts</dt><dd>SN74LVC1GX04, 10 MHz AT-cut crystal, Arduino Due</dd>
+            <dt>Tools</dt><dd>EasyEDA Pro, Python (SciPy)</dd>
+          </dl>
+        </div>
+        <div>
+          <p class="what">A Pierce oscillator drives a quartz crystal coated with a non-polar polymer. Cyclohexane vapour adds mass to the coating, and the frequency drops by a measurable amount.</p>
+          <ul>
+            <li>Schematic passes design-rule check with <b>0</b> errors.</li>
+            <li>Wrote my own solver (negative-resistance + transient) because the simulator had no crystal model: it oscillates at <b>10.001410 MHz</b> with a <b>22.8×</b> start-up margin.</li>
+            <li>Mass sensitivity <b>0.2264 Hz per ng/cm²</b>, which matches the Sauerbrey equation.</li>
+            <li>Found the crystal drive at <b>213 µW</b>, too high for a coated crystal. Changing R3 from 1 kΩ to 3.3 kΩ brings it to <b>93 µW</b> and keeps an <b>11.9×</b> margin.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="proj">
+        <div>
+          <h3>StockSense</h3>
+          <dl class="spec">
+            <dt>Status</dt><dd><span class="chip ok">Public, MIT</span></dd>
+            <dt>Stack</dt><dd>Python 3.12, Flask, SQLite, scikit-learn</dd>
+            <dt>Code</dt><dd><a href="https://github.com/meicheln/stocksense" target="_blank" rel="noopener">meicheln/stocksense ↗</a></dd>
+          </dl>
+        </div>
+        <div>
+          <p class="what">A self-hosted scanner for the Indonesia Stock Exchange that reports how often it is wrong.</p>
+          <ul>
+            <li>Screens <b>55</b> liquid IDX stocks with technical analysis, five separately audited ML models, foreign-flow tracking, paper trading and phone alerts. Installs on Android as a PWA.</li>
+            <li>Every number comes with the period it was measured on and a confidence interval.</li>
+            <li>A naive entry rule backtested over 10 years (<b>3,572</b> trades) lost <b>96.3%</b>. The app shows that result instead of hiding it.</li>
+            <li>Smoke tests guard against indicator look-ahead leakage and check IDX tick-size rounding.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="proj">
+        <div>
+          <h3>Kontra</h3>
+          <dl class="spec">
+            <dt>Status</dt><dd><span class="chip wip">Built, eval pending</span></dd>
+            <dt>Stack</dt><dd>React, Vite, TypeScript, Node, Claude API</dd>
+          </dl>
+        </div>
+        <div>
+          <p class="what">A debate partner that attacks your argument instead of agreeing with it.</p>
+          <ul>
+            <li>Opponent personas with adjustable intensity, a journal of past rounds, and a calibration view of how confident you were versus how you held up.</li>
+            <li>Runs on Claude when an API key is set, and on an offline template engine when it is not, so the whole flow works without a key.</li>
+            <li>A <b>50</b>-claim evaluation set is written. It has not been run against the live model yet, so the quality targets are still targets.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="proj">
+        <div>
+          <h3>Depot Air WA</h3>
+          <dl class="spec">
+            <dt>Status</dt><dd><span class="chip wip">In setup</span></dd>
+            <dt>Stack</dt><dd>Node.js, Baileys (WhatsApp Web), Google Apps Script</dd>
+          </dl>
+        </div>
+        <div>
+          <p class="what">An order book for a refill water depot. Customers order on WhatsApp and the app writes it down.</p>
+          <ul>
+            <li>Messages like “3 galon” are parsed, recorded and confirmed with an automatic reply.</li>
+            <li>A local dashboard marks each order new, delivered or cancelled.</li>
+            <li>Orders sync to a Google Sheet daily report through an outbox that retries every minute, so nothing is lost while offline.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="proj">
+        <div>
+          <h3>Trading Research Lab</h3>
+          <dl class="spec">
+            <dt>Status</dt><dd><span class="chip ok">Ongoing</span></dd>
+            <dt>Stack</dt><dd>Pine Script, MQL5, Python, MCP</dd>
+          </dl>
+        </div>
+        <div>
+          <p class="what">The tools I use to test a trading idea before trusting it with money.</p>
+          <ul>
+            <li>SNIPER SMC, a TradingView indicator (liquidity sweep → displacement → order-block retest) with a per-signal win-rate table.</li>
+            <li>Python backtesters and MT5 Expert Advisors run headless in the strategy tester.</li>
+            <li>Checked <b>469</b> trades across <b>8</b> pair–timeframe sets against a random-walk baseline to see whether the entries had an edge.</li>
+            <li>An MCP server that gives Claude live market data from TradingView, Yahoo Finance and CoinGecko.</li>
+          </ul>
+        </div>
+      </article>
+    </section>
+
+    <section id="method">
+      <h2>Method</h2>
+      <p class="sec-lede">Talent gets noticed. Systems get the work finished.</p>
+      <div class="method">
+        <div>
+          <h3>Measure before claiming</h3>
+          <p>Simulate the oscillator before soldering. Backtest before trading. Put the test in the repo.</p>
+        </div>
+        <div>
+          <h3>Publish the bad number</h3>
+          <p>A −96% backtest or a drive level that is too high is useful information. It goes on the page.</p>
+        </div>
+        <div>
+          <h3>Say what is not done</h3>
+          <p>Each project states its status. “Simulated” is different from “built”, and I keep the two apart.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact" class="contact">
+      <h2>Contact</h2>
+      <p>Open to freelance work in embedded electronics, data tools and small web apps. The fastest way to reach me is GitHub.</p>
+      <a class="btn primary" href="https://github.com/meicheln" target="_blank" rel="noopener">github.com/meicheln ↗</a>
+    </section>
+  </main>
+
+  <footer>Meichel · 2026 · Gauge reading comes from my oscillator simulation, not a live sensor.</footer>
+</div>
+
+<script>
+(() => {
+  const cv = document.getElementById('gauge'), ctx = cv.getContext('2d'), out = document.getElementById('freq');
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const C = { fg: css('--fg'), muted: css('--muted'), accent: css('--accent'), red: css('--needle'), surface: css('--surface'), display: css('--display') };
+  const MAX = 12, START = Math.PI * 0.75, SWEEP = Math.PI * 1.5, F0 = 10.001410, RED = 11;
+  let val = 0, w = 0;
+
+  function fit() {
+    const d = window.devicePixelRatio || 1;
+    w = cv.getBoundingClientRect().width;
+    cv.width = cv.height = Math.round(w * d);
+    ctx.setTransform(d, 0, 0, d, 0, 0);
+    draw();
+  }
+  const pt = (a, r) => [w / 2 + Math.cos(a) * r, w / 2 + Math.sin(a) * r];
+  const line = (a, r1, r2) => { ctx.beginPath(); ctx.moveTo(...pt(a, r1)); ctx.lineTo(...pt(a, r2)); ctx.stroke(); };
+
+  function draw() {
+    if (!w) return;
+    const c = w / 2, R = w * 0.44;
+    ctx.clearRect(0, 0, w, w);
+    ctx.lineCap = 'round';
+    // glowing outer ring, redline from 11 to 12 MHz
+    ctx.shadowBlur = w * 0.04; ctx.lineWidth = w * 0.012;
+    ctx.shadowColor = ctx.strokeStyle = C.accent;
+    ctx.beginPath(); ctx.arc(c, c, R, START, START + SWEEP * RED / MAX); ctx.stroke();
+    ctx.shadowColor = ctx.strokeStyle = C.red;
+    ctx.beginPath(); ctx.arc(c, c, R, START + SWEEP * RED / MAX, START + SWEEP); ctx.stroke();
+    ctx.shadowBlur = 0;
+    // ticks: 5 per MHz, labels every 2 MHz
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `${Math.max(11, w * 0.045)}px ${C.display}`;
+    for (let i = 0; i <= MAX * 5; i++) {
+      const a = START + SWEEP * i / (MAX * 5), major = i % 5 === 0, hot = i >= RED * 5;
+      ctx.strokeStyle = hot ? C.red : major ? C.fg : C.muted;
+      ctx.lineWidth = major ? w * 0.008 : w * 0.004;
+      line(a, R - w * (major ? 0.075 : 0.045), R - w * 0.028);
+      if (major && (i / 5) % 2 === 0) { ctx.fillStyle = hot ? C.red : C.fg; ctx.fillText(i / 5, ...pt(a, R - w * 0.13)); }
+    }
+    // needle
+    const a = START + SWEEP * Math.min(val, MAX) / MAX;
+    ctx.shadowBlur = w * 0.03; ctx.shadowColor = ctx.strokeStyle = C.red; ctx.lineWidth = w * 0.012;
+    line(a, -w * 0.06, R - w * 0.05);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.accent; ctx.lineWidth = w * 0.006;
+    ctx.beginPath(); ctx.arc(c, c, w * 0.045, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
+
+  // start-up sweep like a car dash: 0 → 12 → f0, then the last digits drift like a real counter
+  function sweep() {
+    const t0 = performance.now(), ease = t => 1 - Math.pow(1 - t, 3);
+    (function step(now) {
+      const t = (now - t0) / 1800;
+      val = t < 0.45 ? MAX * ease(t / 0.45) : t < 1 ? MAX + (F0 - MAX) * ease((t - 0.45) / 0.55) : F0;
+      out.textContent = val.toFixed(6);
+      draw();
+      if (t < 1) requestAnimationFrame(step); else idle();
+    })(t0);
+  }
+  function idle() {
+    setInterval(() => { out.textContent = (F0 + Math.round((Math.random() - 0.5) * 8) / 1e6).toFixed(6); }, 450);
+  }
+
+  new ResizeObserver(fit).observe(cv);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.fonts.ready.then(() => { fit(); if (reduce) { val = F0; draw(); } else sweep(); });
+})();
+</script>
+</body>
+</html>
