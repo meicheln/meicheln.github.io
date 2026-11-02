@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@1,6..72,400&display=swap">
 <style>
-/* Layout: full-bleed bands. Blue hero with a draggable 3D QCM crystal in front of a giant name, then one band per project led by its real measured number. */
+/* Layout: a sticky full-screen stage (colour, giant number, scope trace, 3D ring of project objects) with one 100svh text step per project scrolling over it. */
 :root {
   --blue: #1a3fe0;
   --paper: #e8e9ed;
@@ -21,235 +21,289 @@
   --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
 }
 * { box-sizing: border-box; }
-html { background: var(--blue); padding-block: env(safe-area-inset-top, 0px) env(safe-area-inset-bottom, 0px); }
+html { background: var(--blue); }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.55 var(--sans); }
 a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .wrap {
-  max-width: 1240px; margin: 0 auto;
+  max-width: 1280px; margin: 0 auto;
   padding-left: max(20px, env(safe-area-inset-left, 0px));
   padding-right: max(20px, env(safe-area-inset-right, 0px));
 }
-.blue { background: var(--blue); color: var(--white); }
-.grey { background: var(--paper); color: var(--ink); }
-.blue a { color: var(--white); }
-.grey a { color: var(--blue); }
 
-/* Hero */
-.hero { position: relative; height: min(100svh, 920px); min-height: 600px; overflow: hidden; }
-.hero .wrap { position: relative; height: 100%; display: grid; grid-template-rows: auto 1fr auto; padding-block: 22px 28px; }
-.bar { position: relative; z-index: 3; display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
-.bar .name { font: italic 400 26px/1 var(--serif); text-decoration: none; }
-.bar nav { display: flex; gap: 24px; font: 500 14px/1 var(--sans); }
-.bar nav a { text-decoration: none; }
-.bar nav a:hover { text-decoration: underline; text-underline-offset: 4px; }
-.giant {
-  position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-62%); z-index: 1;
-  margin: 0; text-align: center; pointer-events: none; user-select: none;
-  font: 900 clamp(76px, 17vw, 290px)/.8 var(--sans); font-stretch: 112%; letter-spacing: -.045em;
+/* Stage */
+.track { position: relative; color: var(--white); }
+.stage { position: sticky; top: 0; height: 100svh; margin-bottom: -100svh; overflow: hidden; background: var(--blue); }
+.giant { position: absolute; inset: 0; z-index: 1; pointer-events: none; user-select: none; }
+.word {
+  position: absolute; left: 0; right: 0; top: 50%; text-align: center;
+  opacity: 0; filter: blur(10px); transform: translateY(-50%) scale(.94);
+  transition: opacity .55s ease, filter .55s ease, transform .9s cubic-bezier(.2, .7, .2, 1);
 }
-#stage { position: absolute; inset: 0; z-index: 2; cursor: grab; touch-action: pan-y; }
-#stage:active { cursor: grabbing; }
-#stage canvas { display: block; width: 100%; height: 100%; }
-.foot { position: relative; z-index: 3; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px 48px; align-items: end; pointer-events: none; }
-.foot a { pointer-events: auto; }
-.intro { margin: 0; max-width: 31em; font-size: clamp(16px, 1.5vw, 19px); }
-.intro em { font: italic 400 1.18em/1 var(--serif); }
-.readout { font: 400 12px/1.5 var(--mono); text-align: right; text-transform: uppercase; letter-spacing: .06em; }
-.readout b { display: block; margin-bottom: 4px; font: 500 clamp(22px, 2.6vw, 32px)/1 var(--mono); letter-spacing: 0; color: var(--gold); font-variant-numeric: tabular-nums; }
+.word.on { opacity: 1; filter: none; transform: translateY(-58%) scale(1); }
+.word span { display: block; white-space: nowrap; font: 900 clamp(76px, 17vw, 290px)/.8 var(--sans); font-stretch: 112%; letter-spacing: -.045em; }
+.word em { display: block; margin-top: .5em; font: italic 400 clamp(20px, 2.6vw, 36px)/1 var(--serif); color: var(--gold); }
+#scope { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; pointer-events: none; }
+#gl { position: absolute; inset: 0; z-index: 3; cursor: grab; touch-action: pan-y; }
+#gl:active { cursor: grabbing; }
+#gl canvas { display: block; width: 100%; height: 100%; }
+.chrome { position: absolute; inset: 0 0 auto; z-index: 4; pointer-events: none; }
+.chrome .wrap { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-block: 22px; }
+.chrome a { pointer-events: auto; color: var(--white); }
+.name { font: italic 400 26px/1 var(--serif); text-decoration: none; }
+.right { display: grid; justify-items: end; gap: 14px; }
+.right nav { display: flex; gap: 24px; font: 500 14px/1 var(--sans); }
+.right nav a { text-decoration: none; }
+.right nav a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.readout { text-align: right; font: 400 11px/1.5 var(--mono); text-transform: uppercase; letter-spacing: .06em; }
+.readout b { display: block; font: 500 clamp(20px, 2.2vw, 28px)/1.1 var(--mono); letter-spacing: 0; color: var(--gold); font-variant-numeric: tabular-nums; }
 
-/* Project bands */
-.proj { padding-block: clamp(64px, 10vw, 128px); }
-.meta {
-  display: flex; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; padding-bottom: 14px;
-  border-bottom: 1px solid color-mix(in srgb, currentColor 30%, transparent);
-  font: 400 12px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .07em;
+/* Steps scrolling over the stage */
+.step { position: relative; z-index: 5; pointer-events: none; text-shadow: 0 1px 18px rgb(0 0 0 / .2); }
+.step a { pointer-events: auto; color: var(--white); }
+.step .wrap {
+  min-height: 100svh; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
+  align-items: end; gap: 20px 64px; padding-block: 160px clamp(28px, 6vh, 56px);
 }
-.big { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 .35em; margin: clamp(28px, 5vw, 56px) 0 10px; }
-.big .num { font: 800 clamp(60px, 12.5vw, 196px)/.9 var(--sans); font-stretch: 106%; letter-spacing: -.045em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.big .unit { font: italic 400 clamp(22px, 3vw, 40px)/1.1 var(--serif); }
-.blue .unit { color: var(--gold); }
-.grey .unit { color: var(--blue); }
-.cap { margin: 0 0 clamp(40px, 6vw, 80px); max-width: 34em; font-size: clamp(16px, 1.6vw, 20px); }
-.cols { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px 56px; }
-.cols h2 { margin: 0; font: 700 clamp(28px, 3.4vw, 44px)/1.02 var(--sans); letter-spacing: -.02em; text-wrap: balance; }
-.cols p { margin: 0 0 18px; max-width: 38em; }
-.cols ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; max-width: 40em; }
-.cols li { position: relative; padding-left: 24px; }
-.cols li::before { content: ""; position: absolute; left: 0; top: .78em; width: 12px; height: 1px; background: currentColor; }
-.cols .src { display: inline-block; margin-top: 22px; font: 500 14px/1 var(--mono); }
+.step .wrap > * { min-width: 0; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 14px; font: 400 12px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .07em; }
+.meta span + span::before { content: "/"; margin-right: 14px; opacity: .5; }
+.step h2 { margin: 0 0 12px; font: 700 clamp(30px, 3.6vw, 48px)/1 var(--sans); letter-spacing: -.02em; text-wrap: balance; }
+.step .cap { margin: 0; max-width: 32em; font-size: clamp(16px, 1.5vw, 19px); }
+.step ul { justify-self: end; margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; max-width: 27em; font-size: 15px; }
+.step li { position: relative; padding-left: 22px; }
+.step li::before { content: ""; position: absolute; left: 0; top: .75em; width: 12px; height: 1px; background: currentColor; }
+.step .src { font: 500 13px/1.4 var(--mono); }
+.lead { margin: 0; max-width: 30em; font-size: clamp(17px, 1.7vw, 21px); }
+.lead em { font: italic 400 1.15em/1 var(--serif); }
+.index { justify-self: end; display: grid; gap: 6px; text-align: right; font-size: 15px; }
+.index span { margin-bottom: 6px; font: 400 11px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .07em; }
+.index a { text-decoration: none; }
+.index a:hover { text-decoration: underline; text-underline-offset: 4px; }
 
-/* About + contact */
-.about { padding-block: clamp(72px, 11vw, 140px); }
+/* After the stage */
+.about { background: var(--paper); color: var(--ink); padding-block: clamp(80px, 12vw, 150px); }
 .about p { margin: 0; max-width: 23em; font: italic 400 clamp(26px, 3.6vw, 46px)/1.22 var(--serif); text-wrap: pretty; }
-.contact { padding-block: clamp(72px, 10vw, 128px) 32px; }
-.contact .label { font: 400 12px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .07em; }
-.contact .mail { display: inline-block; margin: 18px 0 14px; font: 800 clamp(34px, 7vw, 108px)/.95 var(--sans); letter-spacing: -.04em; text-decoration: none; overflow-wrap: anywhere; }
-.contact .mail:hover { text-decoration: underline; text-decoration-thickness: .06em; text-underline-offset: .12em; }
+.contact { background: var(--blue); color: var(--white); padding-block: clamp(72px, 10vw, 128px) 32px; }
+.contact a { color: var(--white); }
+.label { font: 400 12px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .07em; }
+.big-link { display: inline-block; margin: 18px 0 14px; font: 800 clamp(34px, 7vw, 108px)/.95 var(--sans); letter-spacing: -.04em; text-decoration: none; overflow-wrap: anywhere; }
+.big-link:hover { text-decoration: underline; text-decoration-thickness: .06em; text-underline-offset: .12em; }
 .contact p { margin: 0; max-width: 36em; }
-footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px solid color-mix(in srgb, currentColor 30%, transparent); font: 400 12px/1.5 var(--mono); }
+footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px solid rgb(255 255 255 / .3); font: 400 12px/1.5 var(--mono); }
 
+@media (max-aspect-ratio: 4/5) {
+  .word { top: 36%; }
+}
 @media (max-width: 760px) {
-  .hero { height: min(100svh, 780px); }
-  .giant { font-size: 18vw; transform: translateY(-90%); }
-  .foot { grid-template-columns: 1fr; }
-  .readout { text-align: left; }
-  .cols { grid-template-columns: 1fr; }
-  .bar nav { gap: 16px; }
+  .word span { font-size: 18vw; }
+  .step .wrap { grid-template-columns: 1fr; padding-top: 55svh; }
+  .step ul, .index { justify-self: start; text-align: left; }
+  .readout { font-size: 10px; }
+  .right nav { gap: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .word { transition: opacity .2s; }
 }
 </style>
 </head>
 <body>
 
-<header class="hero blue">
-  <div class="wrap">
-    <div class="bar">
-      <a class="name" href="#top" id="top">Meichel</a>
-      <nav aria-label="Sections">
-        <a href="#work">Work</a>
-        <a href="#about">About</a>
-        <a href="https://github.com/meicheln" target="_blank" rel="noopener">GitHub ↗</a>
-      </nav>
+<div class="track" id="top">
+  <div class="stage" id="stage">
+    <div class="giant" aria-hidden="true">
+      <div class="word on"><span>MEICHEL</span></div>
+      <div class="word"><span>0.2264</span><em>Hz per ng/cm²</em></div>
+      <div class="word"><span>−96.3%</span><em>in 10 years</em></div>
+      <div class="word"><span>50</span><em>test claims</em></div>
+      <div class="word"><span>3 GALON</span><em>on WhatsApp</em></div>
+      <div class="word"><span>469</span><em>trades checked</em></div>
     </div>
-    <div></div>
-    <div class="foot">
-      <p class="intro">Electronics student in Indonesia. I build <em>sensors</em>, market tools and the software around them, and I publish the numbers even when they come out bad.</p>
-      <div class="readout"><b id="freq">10.001410</b>MHz · simulated QCM · drag to rotate</div>
+    <canvas id="scope" aria-hidden="true"></canvas>
+    <div id="gl" aria-hidden="true"></div>
+    <div class="chrome">
+      <div class="wrap">
+        <a class="name" href="#top">Meichel</a>
+        <div class="right">
+          <nav aria-label="Sections">
+            <a href="#qcm">Work</a>
+            <a href="#about">About</a>
+            <a href="https://github.com/meicheln" target="_blank" rel="noopener">GitHub ↗</a>
+          </nav>
+          <div class="readout"><b id="freq">10.001410</b>MHz · <span id="df">Δf 0 Hz</span><br>simulated QCM · scrolling adds mass</div>
+        </div>
+      </div>
     </div>
   </div>
-  <h1 class="giant">MEICHEL</h1>
-  <div id="stage" aria-hidden="true"></div>
-</header>
 
-<main id="work">
-  <section class="proj grey">
+  <section class="step" id="intro">
     <div class="wrap">
-      <div class="meta"><span>Hardware · Jun 2026</span><span>Designed + simulated</span></div>
-      <div class="big"><span class="num">0.2264</span><span class="unit">Hz per ng/cm²</span></div>
-      <p class="cap">How far the crystal's frequency drops for each nanogram of vapour it catches, from my own simulation. It matches the Sauerbrey equation.</p>
-      <div class="cols">
+      <div>
+        <h1 class="sr">Meichel</h1>
+        <p class="lead">Electronics student in Indonesia. I build <em>sensors</em>, market tools and the software around them, and I publish the numbers even when they come out bad.</p>
+      </div>
+      <nav class="index" aria-label="Projects">
+        <span>Scroll, or drag the object</span>
+        <a href="#qcm">QCM gas sensor</a>
+        <a href="#stocksense">StockSense</a>
+        <a href="#kontra">Kontra</a>
+        <a href="#depot">Depot Air WA</a>
+        <a href="#trading">Trading research</a>
+      </nav>
+    </div>
+  </section>
+
+  <section class="step" id="qcm">
+    <div class="wrap">
+      <div>
+        <div class="meta"><span>Hardware</span><span>Jun 2026</span><span>Designed + simulated</span></div>
         <h2>QCM Cyclohexane Sensor</h2>
-        <div>
-          <p>A 10 MHz quartz crystal coated with a non-polar polymer, kept oscillating by a Pierce circuit. Cyclohexane sticks to the coating, adds mass, and the frequency drops. An Arduino Due counts it.</p>
-          <ul>
-            <li>Schematic in EasyEDA Pro around an SN74LVC1GX04, design-rule check clean.</li>
-            <li>The simulator had no crystal model, so I wrote a solver in Python: it oscillates at 10.001410 MHz with a 22.8× start-up margin.</li>
-            <li>It also showed the crystal being driven at 213 µW, too hard for a coated crystal. Raising R3 from 1 kΩ to 3.3 kΩ brings it to 93 µW.</li>
-          </ul>
-        </div>
+        <p class="cap">A 10 MHz quartz crystal with a polymer coating, kept oscillating by a Pierce circuit. Cyclohexane vapour adds mass to the coating and the frequency drops by 0.2264 Hz for every ng/cm², matching the Sauerbrey equation.</p>
       </div>
+      <ul>
+        <li>The simulator had no crystal model, so I wrote a solver in Python. It oscillates at 10.001410 MHz with a 22.8× start-up margin.</li>
+        <li>It showed the crystal driven at 213 µW, too hard for a coating. Raising R3 from 1 kΩ to 3.3 kΩ brings it to 93 µW.</li>
+      </ul>
     </div>
   </section>
 
-  <section class="proj blue">
+  <section class="step" id="stocksense">
     <div class="wrap">
-      <div class="meta"><span>Software · Sep 2026</span><span>Public on GitHub</span></div>
-      <div class="big"><span class="num">−96.3%</span><span class="unit">in 10 years</span></div>
-      <p class="cap">The return of a naive entry rule over 3,572 backtested trades. The app shows this result to its users instead of hiding it.</p>
-      <div class="cols">
+      <div>
+        <div class="meta"><span>Software</span><span>Sep 2026</span><span>Public on GitHub</span></div>
         <h2>StockSense</h2>
-        <div>
-          <p>A self-hosted scanner for the Indonesia Stock Exchange that reports how often it is wrong.</p>
-          <ul>
-            <li>Screens 55 liquid IDX stocks with technical analysis, five separately audited ML models and foreign-flow tracking.</li>
-            <li>Paper trading, backtests and phone alerts. Installs on Android as a PWA.</li>
-            <li>Every number comes with the period it was measured on and a confidence interval.</li>
-          </ul>
-          <a class="src" href="https://github.com/meicheln/stocksense" target="_blank" rel="noopener">github.com/meicheln/stocksense ↗</a>
-        </div>
+        <p class="cap">A self-hosted scanner for the Indonesia Stock Exchange that reports how often it is wrong. A naive entry rule lost 96.3% over 3,572 backtested trades, and the app shows that result instead of hiding it.</p>
       </div>
+      <ul>
+        <li>55 liquid IDX stocks, technical analysis, five separately audited ML models, foreign-flow tracking.</li>
+        <li>Every number comes with its measurement period and a confidence interval.</li>
+        <li><a class="src" href="https://github.com/meicheln/stocksense" target="_blank" rel="noopener">github.com/meicheln/stocksense ↗</a></li>
+      </ul>
     </div>
   </section>
 
-  <section class="proj grey">
+  <section class="step" id="kontra">
     <div class="wrap">
-      <div class="meta"><span>Web app · Aug 2026</span><span>Built, evaluation pending</span></div>
-      <div class="big"><span class="num">50</span><span class="unit">test claims</span></div>
-      <p class="cap">Written to check whether the AI opponent argues well. They haven't been run against the live model yet.</p>
-      <div class="cols">
+      <div>
+        <div class="meta"><span>Web app</span><span>Aug 2026</span><span>Evaluation pending</span></div>
         <h2>Kontra</h2>
-        <div>
-          <p>A debate partner that attacks your argument instead of agreeing with it. React, Vite and TypeScript with a small Node API.</p>
-          <ul>
-            <li>Opponent personas with adjustable intensity, a journal of past rounds, and a view of how confident you were versus how you held up.</li>
-            <li>Uses Claude when an API key is set and an offline template engine when it isn't, so the whole flow runs without a key.</li>
-          </ul>
-        </div>
+        <p class="cap">A debate partner that attacks your argument instead of agreeing with it. 50 test claims are written to check how well it argues. They haven't been run against the live model yet.</p>
       </div>
+      <ul>
+        <li>Opponent personas with adjustable intensity and a journal of past rounds.</li>
+        <li>Uses Claude when an API key is set and an offline template engine when it isn't.</li>
+      </ul>
     </div>
   </section>
 
-  <section class="proj blue">
+  <section class="step" id="depot">
     <div class="wrap">
-      <div class="meta"><span>Small business · Oct 2026</span><span>Setting up</span></div>
-      <div class="big"><span class="num">“3 galon”</span><span class="unit">on WhatsApp</span></div>
-      <p class="cap">That's all a customer of the water refill depot has to type. The app records the order and replies to confirm it.</p>
-      <div class="cols">
+      <div>
+        <div class="meta"><span>Small business</span><span>Oct 2026</span><span>Setting up</span></div>
         <h2>Depot Air WA</h2>
-        <div>
-          <p>An order book for a refill water depot, built on Node.js and Baileys.</p>
-          <ul>
-            <li>A local dashboard marks each order new, delivered or cancelled.</li>
-            <li>Orders go to a Google Sheet daily report through an outbox that retries every minute, so nothing is lost while the connection is down.</li>
-          </ul>
-        </div>
+        <p class="cap">“3 galon” is all a customer of the water refill depot has to type on WhatsApp. The app records the order and replies to confirm it.</p>
       </div>
+      <ul>
+        <li>A local dashboard marks each order new, delivered or cancelled.</li>
+        <li>Orders reach a Google Sheet daily report through an outbox that retries every minute.</li>
+      </ul>
     </div>
   </section>
 
-  <section class="proj grey">
+  <section class="step" id="trading">
     <div class="wrap">
-      <div class="meta"><span>Research · Oct 2026</span><span>Ongoing</span></div>
-      <div class="big"><span class="num">469</span><span class="unit">trades checked</span></div>
-      <p class="cap">Across 8 currency pair and timeframe sets, compared with a random-walk baseline to see whether the entries had an edge.</p>
-      <div class="cols">
+      <div>
+        <div class="meta"><span>Research</span><span>Oct 2026</span><span>Ongoing</span></div>
         <h2>Trading Research Lab</h2>
-        <div>
-          <p>The tools I use to test a trading idea before trusting it with money.</p>
-          <ul>
-            <li>SNIPER SMC, a TradingView indicator in Pine Script that logs the result of every signal it gives.</li>
-            <li>Python backtesters, and MT5 Expert Advisors run headless in the strategy tester.</li>
-            <li>An MCP server that gives Claude live market data from TradingView, Yahoo Finance and CoinGecko.</li>
-          </ul>
-        </div>
+        <p class="cap">Before trusting an idea with money, I check whether it beats a coin flip. 469 trades from my indicator, across 8 pair and timeframe sets, compared with a random-walk baseline.</p>
       </div>
+      <ul>
+        <li>SNIPER SMC, a Pine Script indicator that logs the result of every signal.</li>
+        <li>Python backtesters, MT5 Expert Advisors, and an MCP server that feeds Claude live market data.</li>
+      </ul>
     </div>
   </section>
-</main>
+</div>
 
-<section class="about blue" id="about">
+<section class="about" id="about">
   <div class="wrap">
     <p>I like projects where a number tells you whether you were right: a crystal's frequency, a backtest's return, an order that did or didn't get recorded. I'd rather show a bad number I can explain than a good one I can't.</p>
   </div>
 </section>
 
-<section class="contact grey" id="contact">
+<section class="contact" id="contact">
   <div class="wrap">
     <div class="label">Work with me</div>
-    <a class="mail" href="https://github.com/meicheln" target="_blank" rel="noopener">github.com/meicheln ↗</a>
+    <a class="big-link" href="https://github.com/meicheln" target="_blank" rel="noopener">github.com/meicheln ↗</a>
     <p>Open to freelance work in embedded electronics, data tools and small web apps.</p>
-    <footer>© 2026 Meichel · The crystal up top is a 3D model of a 10 MHz AT-cut QCM, the part my sensor is built around.</footer>
+    <footer>© 2026 Meichel · The objects are 3D models built in Three.js. The frequency readout borrows my oscillator simulation: scrolling “adds mass” and lowers it, like vapour on the real crystal.</footer>
   </div>
 </section>
 
+<script>
+// stage: scroll progress, background colour, giant word, frequency readout, scope trace
+(() => {
+  const S = window.S = { p: 0, bg: [26, 63, 224] };
+  const track = document.querySelector('.track'), stage = document.getElementById('stage');
+  const words = [...document.querySelectorAll('.word')], steps = words.length;
+  const COLORS = ['#1a3fe0', '#1a3fe0', '#b3241c', '#1d1b22', '#0a7f99', '#17613f'].map(c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16)));
+  const freq = document.getElementById('freq'), df = document.getElementById('df');
+  const scope = document.getElementById('scope'), sc = scope.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const F0 = 10.001410, STEP_HZ = 113;
+  const smooth = x => x * x * (3 - 2 * x);
+  let jitter = 0, active = 0;
+  if (!reduce) setInterval(() => { jitter = Math.round((Math.random() - 0.5) * 8); }, 450);
+
+  function sizeScope() {
+    const d = Math.min(window.devicePixelRatio || 1, 2);
+    scope.width = scope.clientWidth * d; scope.height = scope.clientHeight * d;
+    sc.setTransform(d, 0, 0, d, 0, 0);
+  }
+  new ResizeObserver(sizeScope).observe(scope);
+
+  (function loop(now) {
+    requestAnimationFrame(loop);
+    S.p = Math.min(steps - 1, Math.max(0, (window.scrollY - track.offsetTop) / window.innerHeight));
+    const i0 = Math.floor(S.p), i1 = Math.min(steps - 1, i0 + 1);
+    const k = smooth(Math.min(1, Math.max(0, (S.p - i0 - 0.3) / 0.4)));
+    S.bg = COLORS[i0].map((c, j) => Math.round(c + (COLORS[i1][j] - c) * k));
+    stage.style.backgroundColor = `rgb(${S.bg})`;
+
+    const a = Math.round(S.p);
+    if (a !== active) { words[active].classList.remove('on'); words[a].classList.add('on'); active = a; }
+
+    const hz = Math.round(S.p * STEP_HZ);
+    freq.textContent = (F0 - (hz - jitter) / 1e6).toFixed(6);
+    df.textContent = hz ? `Δf −${hz} Hz` : 'Δf 0 Hz';
+
+    // fewer cycles across the screen as "mass" is added
+    const w = scope.clientWidth, h = scope.clientHeight;
+    const cy = h * (w / h < 0.8 ? 0.36 : 0.5), amp = Math.min(h * 0.07, 54), cyc = 7.5 - S.p * 0.7, ph = reduce ? 0 : now / 700;
+    sc.clearRect(0, 0, w, h);
+    sc.beginPath();
+    for (let x = 0; x <= w; x += 3) {
+      const y = cy + Math.sin((x / w) * cyc * Math.PI * 2 - ph) * amp;
+      x ? sc.lineTo(x, y) : sc.moveTo(x, y);
+    }
+    sc.strokeStyle = 'rgba(255,255,255,.4)'; sc.lineWidth = 1.5; sc.stroke();
+  })(performance.now());
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-// readout drifts in the last digits like a real frequency counter
+// 3D ring: one object per project, scroll brings the current one to the front
 (() => {
-  const out = document.getElementById('freq'), F0 = 10.001410;
-  setInterval(() => { out.textContent = (F0 + Math.round((Math.random() - 0.5) * 8) / 1e6).toFixed(6); }, 450);
-})();
-
-(() => {
-  const host = document.getElementById('stage');
+  const host = document.getElementById('gl'), S = window.S;
   if (!window.THREE) return;
   let renderer;
   try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); } catch (e) { return; }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
   host.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x000000, 7, 14);
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
 
   // reflections: a small studio of bright panels baked into an environment map
@@ -260,47 +314,144 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
     m.position.set(x, y, z); m.lookAt(0, 0, 0); studio.add(m);
   });
   scene.environment = new THREE.PMREMGenerator(renderer).fromScene(studio, 0.02).texture;
-  const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(3, 4, 5); scene.add(key);
-  scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+  const key = new THREE.DirectionalLight(0xffffff, 1.3); key.position.set(3, 4, 5); scene.add(key);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.3));
 
-  const gold = new THREE.MeshStandardMaterial({ color: 0xe2b457, metalness: 1, roughness: 0.3 });
+  const gold = new THREE.MeshStandardMaterial({ color: 0xf0b44a, metalness: 1, roughness: 0.28 });
+  const goldMatte = new THREE.MeshStandardMaterial({ color: 0xe9bd62, metalness: 0.3, roughness: 0.45 });
   const steel = new THREE.MeshStandardMaterial({ color: 0xcfd4dc, metalness: 1, roughness: 0.28 });
-  const quartz = new THREE.MeshPhysicalMaterial({ color: 0xe6ecff, metalness: 0, roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0.04, transparent: true, opacity: 0.38, side: THREE.DoubleSide, depthWrite: false });
+  const white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35 });
+  const ivory = new THREE.MeshPhysicalMaterial({ color: 0xf7f6f0, roughness: 0.25, clearcoat: 0.8 });
+  const ink = new THREE.MeshStandardMaterial({ color: 0x111318, roughness: 0.5 });
+  const capBlue = new THREE.MeshStandardMaterial({ color: 0x1d4fd6, roughness: 0.35 });
+  const glass = (color, opacity) => new THREE.MeshPhysicalMaterial({ color, metalness: 0, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.04, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false });
+  const quartz = glass(0xe6ecff, 0.38), plastic = glass(0xbfe6ff, 0.3), waterMat = glass(0x5cc8f2, 0.42);
 
-  const crystal = new THREE.Group();
-  const add = (geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); crystal.add(m); return m; };
-  const disc = (r, h) => new THREE.CylinderGeometry(r, r, h, 128).rotateX(Math.PI / 2);
+  const mk = (geo, mat, parent, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
 
-  add(disc(1.05, 0.04), quartz).renderOrder = 2;
-  // keyhole electrodes: front one tabs to the left clip, back one to the right
-  add(disc(0.56, 0.012), gold, 0, 0, 0.027);
-  add(new THREE.BoxGeometry(0.52, 0.15, 0.012), gold, -0.76, 0, 0.027);
-  add(disc(0.56, 0.012), gold, 0, 0, -0.027);
-  add(new THREE.BoxGeometry(0.52, 0.15, 0.012), gold, 0.76, 0, -0.027);
-  [-1, 1].forEach(s => {
-    add(new THREE.BoxGeometry(0.1, 0.34, 0.13), steel, s * 1.08, 0, 0);
-    const wire = new THREE.CatmullRomCurve3([[1.08, -0.12], [1.08, -0.85], [0.56, -1.35], [0.56, -2.2]].map(([x, y]) => new THREE.Vector3(s * x, y, 0)));
-    add(new THREE.TubeGeometry(wire, 80, 0.032, 12), steel);
+  function crystal() {
+    const g = new THREE.Group(), disc = (r, h) => new THREE.CylinderGeometry(r, r, h, 128).rotateX(Math.PI / 2);
+    mk(disc(1.05, 0.04), quartz, g).renderOrder = 2;
+    // keyhole electrodes: front one tabs to the left clip, back one to the right
+    mk(disc(0.56, 0.012), gold, g, 0, 0, 0.027);
+    mk(new THREE.BoxGeometry(0.52, 0.15, 0.012), gold, g, -0.76, 0, 0.027);
+    mk(disc(0.56, 0.012), gold, g, 0, 0, -0.027);
+    mk(new THREE.BoxGeometry(0.52, 0.15, 0.012), gold, g, 0.76, 0, -0.027);
+    [-1, 1].forEach(s => {
+      mk(new THREE.BoxGeometry(0.1, 0.34, 0.13), steel, g, s * 1.08, 0, 0);
+      const wire = new THREE.CatmullRomCurve3([[1.08, -0.12], [1.08, -0.85], [0.56, -1.35], [0.56, -2.2]].map(([x, y]) => new THREE.Vector3(s * x, y, 0)));
+      mk(new THREE.TubeGeometry(wire, 80, 0.032, 12), steel, g);
+    });
+    const base = new THREE.Shape();
+    base.absarc(-0.72, 0, 0.28, Math.PI / 2, Math.PI * 1.5, false);
+    base.absarc(0.72, 0, 0.28, -Math.PI / 2, Math.PI / 2, false);
+    const baseGeo = new THREE.ExtrudeGeometry(base, { depth: 0.26, bevelEnabled: true, bevelSize: 0.04, bevelThickness: 0.04, bevelSegments: 4, curveSegments: 32 });
+    baseGeo.center(); baseGeo.rotateX(Math.PI / 2);
+    mk(baseGeo, steel, g, 0, -1.58, 0);
+    return g;
+  }
+
+  function candles() {
+    const g = new THREE.Group(), C = [1.0, 0.86, 0.93, 0.72, 0.61, 0.68, 0.47, 0.33, 0.39, 0.14], Y = v => (v - 0.58) * 2;
+    let o = 1.06;
+    C.forEach((c, i) => {
+      const x = (i - (C.length - 1) / 2) * 0.22, top = Math.max(o, c), bot = Math.min(o, c), mat = c < o ? white : goldMatte;
+      mk(new THREE.BoxGeometry(0.13, Math.max(Y(top) - Y(bot), 0.04), 0.13), mat, g, x, (Y(top) + Y(bot)) / 2, 0);
+      const hi = Y(top) + 0.1 + (i % 3) * 0.05, lo = Y(bot) - 0.1 - (i % 2) * 0.06;
+      mk(new THREE.BoxGeometry(0.025, hi - lo, 0.025), mat, g, x, (hi + lo) / 2, 0);
+      o = c;
+    });
+    mk(new THREE.BoxGeometry(2.5, 0.05, 0.6), steel, g, 0, Y(0.14) - 0.35, 0);
+    return g;
+  }
+
+  function bubble(w, h, r) {
+    const s = new THREE.Shape(), x0 = -w / 2, x1 = w / 2, y0 = -h / 2, y1 = h / 2;
+    s.moveTo(x0 + r, y0); s.lineTo(x0 + w * 0.3, y0); s.lineTo(x0 + w * 0.18, y0 - 0.3); s.lineTo(x0 + w * 0.45, y0);
+    s.lineTo(x1 - r, y0); s.quadraticCurveTo(x1, y0, x1, y0 + r);
+    s.lineTo(x1, y1 - r); s.quadraticCurveTo(x1, y1, x1 - r, y1);
+    s.lineTo(x0 + r, y1); s.quadraticCurveTo(x0, y1, x0, y1 - r);
+    s.lineTo(x0, y0 + r); s.quadraticCurveTo(x0, y0, x0 + r, y0);
+    return new THREE.ExtrudeGeometry(s, { depth: 0.16, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 4, curveSegments: 16 }).translate(0, 0, -0.08);
+  }
+  function bubbles() {
+    const g = new THREE.Group();
+    const a = mk(bubble(1.5, 0.95, 0.3), white, g, -0.32, 0.45, 0.15); a.rotation.z = 0.05;
+    [-0.32, 0, 0.32].forEach(x => { mk(new THREE.SphereGeometry(0.075, 20, 14), ink, a, x, 0.02, 0.13).scale.z = 0.5; });
+    // the reply, mirrored, with an exclamation mark on the side facing us
+    const b = mk(bubble(1.3, 0.85, 0.28), goldMatte, g, 0.45, -0.55, -0.2); b.rotation.set(0, Math.PI, -0.06);
+    mk(new THREE.CylinderGeometry(0.055, 0.045, 0.36, 16), ink, b, 0, 0.08, -0.13);
+    mk(new THREE.SphereGeometry(0.06, 16, 12), ink, b, 0, -0.22, -0.13);
+    return g;
+  }
+
+  function galon() {
+    const g = new THREE.Group(), V = (x, y) => new THREE.Vector2(x, y);
+    const prof = [V(0.001, -0.95), V(0.5, -0.95), V(0.6, -0.9), V(0.62, -0.8), V(0.62, -0.52), V(0.58, -0.47), V(0.62, -0.42), V(0.62, 0.02), V(0.58, 0.07), V(0.62, 0.12), V(0.62, 0.34), V(0.56, 0.52), V(0.38, 0.7), V(0.21, 0.78), V(0.19, 0.92)];
+    mk(new THREE.LatheGeometry(prof, 72), plastic, g).renderOrder = 2;
+    const water = prof.filter(p => p.y < 0.36).map(p => V(Math.max(0.001, p.x * 0.95), p.y + 0.01));
+    water.push(V(0.001, 0.36));
+    mk(new THREE.LatheGeometry(water, 72), waterMat, g).renderOrder = 1;
+    mk(new THREE.CylinderGeometry(0.215, 0.215, 0.17, 40), capBlue, g, 0, 1.0, 0);
+    mk(new THREE.TorusGeometry(0.2, 0.025, 10, 40), capBlue, g, 0, 0.9, 0).rotation.x = Math.PI / 2;
+    return g;
+  }
+
+  function die() {
+    const g = new THREE.Group(), s = new THREE.Shape(), a = 0.32, r = 0.1;
+    s.moveTo(-a + r, -a); s.lineTo(a - r, -a); s.quadraticCurveTo(a, -a, a, -a + r);
+    s.lineTo(a, a - r); s.quadraticCurveTo(a, a, a - r, a);
+    s.lineTo(-a + r, a); s.quadraticCurveTo(-a, a, -a, a - r);
+    s.lineTo(-a, -a + r); s.quadraticCurveTo(-a, -a, -a + r, -a);
+    const geo = new THREE.ExtrudeGeometry(s, { depth: 0.64, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.1, bevelSegments: 5, curveSegments: 10 });
+    geo.center();
+    mk(geo, ivory, g);
+    // pips: opposite faces add up to 7
+    const H = 0.421, d = 0.2, up = new THREE.Vector3(0, 1, 0), pip = new THREE.CylinderGeometry(0.072, 0.072, 0.02, 24);
+    const L = { 1: [[0, 0]], 2: [[-1, -1], [1, 1]], 3: [[-1, -1], [0, 0], [1, 1]], 4: [[-1, -1], [1, -1], [-1, 1], [1, 1]], 5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]], 6: [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]] };
+    [[1, [0, 0, 1], [1, 0, 0], [0, 1, 0]], [6, [0, 0, -1], [1, 0, 0], [0, 1, 0]], [3, [1, 0, 0], [0, 0, 1], [0, 1, 0]], [4, [-1, 0, 0], [0, 0, 1], [0, 1, 0]], [2, [0, 1, 0], [1, 0, 0], [0, 0, 1]], [5, [0, -1, 0], [1, 0, 0], [0, 0, 1]]].forEach(([n, nv, uv, vv]) => {
+      const N = new THREE.Vector3(...nv), U = new THREE.Vector3(...uv), Vv = new THREE.Vector3(...vv), q = new THREE.Quaternion().setFromUnitVectors(up, N);
+      L[n].forEach(([u, v]) => { const m = mk(pip, ink, g); m.position.copy(N).multiplyScalar(H).addScaledVector(U, u * d).addScaledVector(Vv, v * d); m.quaternion.copy(q); });
+    });
+    return g;
+  }
+  function dice() {
+    const g = new THREE.Group();
+    const a = die(); a.position.set(-0.55, -0.15, 0.1); a.rotation.set(0.5, 0.7, 0.1); g.add(a);
+    const b = die(); b.position.set(0.6, 0.3, -0.25); b.rotation.set(-0.4, 2.2, 0.3); g.add(b);
+    return g;
+  }
+
+  // scale each object to a common size and centre it on its own pivot
+  function fit(obj, size) {
+    const box = new THREE.Box3().setFromObject(obj), dim = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+    const s = size / Math.max(dim.x, dim.y, dim.z);
+    obj.scale.setScalar(s); obj.position.copy(c).multiplyScalar(-s);
+    const pivot = new THREE.Group(); pivot.add(obj); return pivot;
+  }
+
+  const objs = [fit(crystal(), 2.5), fit(candles(), 2.5), fit(bubbles(), 2.3), fit(galon(), 2.4), fit(dice(), 2.0)];
+  const N = objs.length, R = 3.2, ring = new THREE.Group();
+  const holders = objs.map((o, i) => {
+    const h = new THREE.Group(), a = i * 2 * Math.PI / N;
+    h.position.set(Math.sin(a) * R, 0, Math.cos(a) * R);
+    h.add(o); ring.add(h); return h;
   });
-  // HC-49 style base
-  const base = new THREE.Shape();
-  base.absarc(-0.72, 0, 0.28, Math.PI / 2, Math.PI * 1.5, false);
-  base.absarc(0.72, 0, 0.28, -Math.PI / 2, Math.PI / 2, false);
-  const baseGeo = new THREE.ExtrudeGeometry(base, { depth: 0.26, bevelEnabled: true, bevelSize: 0.04, bevelThickness: 0.04, bevelSegments: 4, curveSegments: 32 });
-  baseGeo.center(); baseGeo.rotateX(Math.PI / 2);
-  add(baseGeo, steel, 0, -1.58, 0);
-  scene.add(crystal);
+  scene.add(ring);
 
   let w = 0, h = 0;
-  function fit() {
+  function fitCam() {
     w = host.clientWidth; h = host.clientHeight;
     renderer.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.position.set(0, 0.15, Math.max(9.5, 6 / camera.aspect));
+    const asp = w / h, d = Math.max(7, 5.6 / asp), visH = 2 * d * Math.tan(Math.PI / 12);
+    camera.aspect = asp;
+    camera.position.set(0, 0.3, R + d); camera.lookAt(0, 0, R);
     camera.updateProjectionMatrix();
+    ring.position.y = asp < 0.8 ? visH * 0.14 : 0.2;
+    scene.fog.near = d - 0.5; scene.fog.far = d + 7;
   }
-  new ResizeObserver(fit).observe(host);
-  fit();
+  new ResizeObserver(fitCam).observe(host);
+  fitCam();
 
   let dragX = 0, tilt = 0, vel = 0, last = null;
   host.addEventListener('pointerdown', e => { last = e; host.setPointerCapture(e.pointerId); });
@@ -316,20 +467,24 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
   let visible = true;
   new IntersectionObserver(([en]) => { visible = en.isIntersecting; }).observe(host);
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const clock = new THREE.Clock();
-  const ease = t => 1 - Math.pow(1 - Math.min(t, 1), 3);
+  const clock = new THREE.Clock(), ease = t => 1 - Math.pow(1 - Math.min(t, 1), 3);
+  let oi = 0;
 
   (function frame() {
     requestAnimationFrame(frame);
     if (!visible) return;
     const t = clock.getElapsedTime(), m = reduce ? 0 : 1;
-    const scroll = Math.min(1, window.scrollY / (h || 1));
-    const intro = reduce ? 1 : ease(t / 1.6);
+    const target = Math.min(N - 1, Math.max(0, S.p - 1));
+    oi += (target - oi) * (reduce ? 1 : 0.08);
     if (!last) { vel *= 0.94; dragX += vel; }
-    crystal.rotation.y = -0.5 + m * t * 0.22 + dragX + scroll * Math.PI + (1 - intro) * 2.2;
-    crystal.rotation.x = 0.1 + tilt + m * Math.sin(t * 0.8) * 0.05;
-    crystal.position.y = 0.95 + m * Math.sin(t * 1.1) * 0.06 + scroll * 1.2;
-    crystal.scale.setScalar(0.75 + 0.25 * intro);
+    ring.rotation.y = -oi * 2 * Math.PI / N;
+    holders.forEach((hd, i) => {
+      hd.rotation.y = -ring.rotation.y - 0.5 + m * t * 0.25 + dragX;
+      hd.rotation.x = 0.1 + tilt + m * Math.sin(t * 0.8 + i) * 0.05;
+      hd.position.y = m * Math.sin(t * 1.1 + i * 1.7) * 0.06;
+    });
+    holders[0].scale.setScalar(0.75 + 0.25 * (reduce ? 1 : ease(t / 1.6)));
+    scene.fog.color.setRGB(S.bg[0] / 255, S.bg[1] / 255, S.bg[2] / 255).convertSRGBToLinear();
     renderer.render(scene, camera);
   })();
 })();
