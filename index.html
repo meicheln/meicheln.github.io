@@ -158,6 +158,17 @@ a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
 .contact p { margin: 0; max-width: 36em; color: var(--mute); }
 footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px solid var(--line); color: var(--mute); font: 400 12px/1.5 var(--mono); }
 
+/* World clock pinned bottom-right; difference blend keeps it readable on the dark stage and the white band */
+.clock {
+  position: fixed; z-index: 20; pointer-events: none; text-align: right; color: #fff; mix-blend-mode: difference;
+  right: max(20px, env(safe-area-inset-right, 0px)); bottom: max(18px, env(safe-area-inset-bottom, 0px));
+  font: 400 10px/1.5 var(--mono); text-transform: uppercase; letter-spacing: .08em;
+}
+.clock b { display: block; font: 500 22px/1.1 var(--mono); letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.clock .live { display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: currentColor; vertical-align: 1px; animation: blink 1s steps(2, start) infinite; }
+.clock-row { margin-top: 4px; opacity: .7; font-variant-numeric: tabular-nums; }
+@keyframes blink { to { visibility: hidden; } }
+
 @media (max-aspect-ratio: 4/5) {
   .word { top: 34%; }
 }
@@ -167,9 +178,12 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
   .readout { font-size: 10px; }
   .right nav { gap: 16px; }
   .sheet-head, .sheet-grid { grid-template-columns: 1fr; }
+  .clock b { font-size: 16px; }
+  .clock-row { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .word span i { transition: opacity .2s; transform: none; }
+  .clock .live { animation: none; }
 }
 </style>
 </head>
@@ -306,6 +320,11 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
   </section>
 </div>
 
+<div class="clock" aria-hidden="true">
+  <b id="clk-main">--:--:--</b><span class="live"></span>Jakarta · WIB
+  <div class="clock-row" id="clk-row"></div>
+</div>
+
 <section class="about" id="about">
   <div class="wrap">
     <div class="sheet-head">
@@ -424,6 +443,20 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
   for (let n = 1; n <= 6; n++) l.append(pin(n));
   for (let n = 12; n >= 7; n--) r.append(pin(n));
   select(12);
+})();
+
+// world clock: Jakarta first, three other markets underneath
+(() => {
+  const fmt = (tz, sec) => new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: sec ? '2-digit' : undefined, hourCycle: 'h23' });
+  const main = fmt('Asia/Jakarta', true), others = [['LDN', 'Europe/London'], ['NYC', 'America/New_York'], ['TYO', 'Asia/Tokyo']].map(([c, tz]) => [c, fmt(tz, false)]);
+  const elMain = document.getElementById('clk-main'), elRow = document.getElementById('clk-row');
+  const tick = () => {
+    const now = new Date();
+    elMain.textContent = main.format(now);
+    elRow.textContent = others.map(([c, f]) => `${c} ${f.format(now)}`).join(' · ');
+  };
+  tick();
+  setInterval(tick, 1000);
 })();
 
 // stage: scroll progress, giant word, frequency readout, scope trace, and the demos
