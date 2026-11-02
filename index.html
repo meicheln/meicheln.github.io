@@ -290,135 +290,171 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
   })(performance.now());
 })();
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
-// 3D ring: one object per project, scroll brings the current one to the front
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+// 3D: one object per project, the current one spins in while the old one spins out
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
 (() => {
   const host = document.getElementById('gl'), S = window.S;
-  if (!window.THREE) return;
   let renderer;
   try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); } catch (e) { return; }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
   host.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x000000, 7, 14);
+  scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(renderer), 0.04).texture;
+  const key = new THREE.DirectionalLight(0xffffff, 1.1); key.position.set(3, 5, 4); scene.add(key);
+  const rim = new THREE.DirectionalLight(0xffffff, 0.9); rim.position.set(-4, 2, -4); scene.add(rim);
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
 
-  // reflections: a small studio of bright panels baked into an environment map
-  const studio = new THREE.Scene();
-  studio.background = new THREE.Color(0x3a3d48);
-  [[7, 2, 0, 6, 2, 0xffffff], [2, 7, -7, 0, 3, 0xffffff], [2, 7, 7, 1, -2, 0xc8d4ff], [9, 1.5, 0, -5, 4, 0x8ea2ff], [6, 4, 0, 1, 9, 0xfff1d6]].forEach(([w, h, x, y, z, c]) => {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide }));
-    m.position.set(x, y, z); m.lookAt(0, 0, 0); studio.add(m);
-  });
-  scene.environment = new THREE.PMREMGenerator(renderer).fromScene(studio, 0.02).texture;
-  const key = new THREE.DirectionalLight(0xffffff, 1.3); key.position.set(3, 4, 5); scene.add(key);
-  scene.add(new THREE.AmbientLight(0xffffff, 0.3));
-
-  const gold = new THREE.MeshStandardMaterial({ color: 0xf0b44a, metalness: 1, roughness: 0.28 });
-  const goldMatte = new THREE.MeshStandardMaterial({ color: 0xe9bd62, metalness: 0.3, roughness: 0.45 });
-  const steel = new THREE.MeshStandardMaterial({ color: 0xcfd4dc, metalness: 1, roughness: 0.28 });
-  const white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35 });
-  const ivory = new THREE.MeshPhysicalMaterial({ color: 0xf7f6f0, roughness: 0.25, clearcoat: 0.8 });
-  const ink = new THREE.MeshStandardMaterial({ color: 0x111318, roughness: 0.5 });
-  const capBlue = new THREE.MeshStandardMaterial({ color: 0x1d4fd6, roughness: 0.35 });
-  const glass = (color, opacity) => new THREE.MeshPhysicalMaterial({ color, metalness: 0, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.04, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false });
-  const quartz = glass(0xe6ecff, 0.38), plastic = glass(0xbfe6ff, 0.3), waterMat = glass(0x5cc8f2, 0.42);
-
+  const P = o => new THREE.MeshPhysicalMaterial(o);
+  const glassy = (color, opacity, extra = {}) => P({ color, metalness: 0, roughness: 0.04, clearcoat: 1, clearcoatRoughness: 0.03, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false, ...extra });
+  const M = {
+    gold: P({ color: 0xf2b84b, metalness: 1, roughness: 0.2, clearcoat: 0.3 }),
+    steel: new THREE.MeshStandardMaterial({ color: 0xe1e5ec, metalness: 1, roughness: 0.2 }),
+    clay: P({ color: 0xf7f7fb, roughness: 0.48, clearcoat: 0.3, clearcoatRoughness: 0.35 }),
+    clayGold: P({ color: 0xf0bf5e, roughness: 0.42, clearcoat: 0.35, clearcoatRoughness: 0.3 }),
+    ink: P({ color: 0x14161c, roughness: 0.3, clearcoat: 0.7 }),
+    graphite: P({ color: 0x252932, metalness: 0.55, roughness: 0.3, clearcoat: 0.9, clearcoatRoughness: 0.08 }),
+    cap: P({ color: 0x1f56e0, roughness: 0.22, clearcoat: 1 }),
+    quartz: glassy(0xf2f5ff, 0.42, { iridescence: 0.6, iridescenceIOR: 1.3 }),
+    plastic: glassy(0xd2efff, 0.3),
+    water: glassy(0x47b8f0, 0.5, { side: THREE.FrontSide }),
+    sheen: glassy(0xffffff, 0.06, { side: THREE.FrontSide }),
+  };
   const mk = (geo, mat, parent, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
+  const V2 = (x, y) => new THREE.Vector2(x, y);
+
+  function roundRect(w, h, r) {
+    const s = new THREE.Shape(), x0 = -w / 2, y0 = -h / 2, x1 = w / 2, y1 = h / 2;
+    s.moveTo(x0 + r, y0); s.lineTo(x1 - r, y0); s.quadraticCurveTo(x1, y0, x1, y0 + r);
+    s.lineTo(x1, y1 - r); s.quadraticCurveTo(x1, y1, x1 - r, y1);
+    s.lineTo(x0 + r, y1); s.quadraticCurveTo(x0, y1, x0, y1 - r);
+    s.lineTo(x0, y0 + r); s.quadraticCurveTo(x0, y0, x0 + r, y0);
+    return s;
+  }
 
   function crystal() {
-    const g = new THREE.Group(), disc = (r, h) => new THREE.CylinderGeometry(r, r, h, 128).rotateX(Math.PI / 2);
-    mk(disc(1.05, 0.04), quartz, g).renderOrder = 2;
+    const g = new THREE.Group(), disc = (r, h) => new THREE.CylinderGeometry(r, r, h, 160).rotateX(Math.PI / 2);
+    mk(disc(1.05, 0.045), M.quartz, g).renderOrder = 3;
     // keyhole electrodes: front one tabs to the left clip, back one to the right
-    mk(disc(0.56, 0.012), gold, g, 0, 0, 0.027);
-    mk(new THREE.BoxGeometry(0.52, 0.15, 0.012), gold, g, -0.76, 0, 0.027);
-    mk(disc(0.56, 0.012), gold, g, 0, 0, -0.027);
-    mk(new THREE.BoxGeometry(0.52, 0.15, 0.012), gold, g, 0.76, 0, -0.027);
+    [[0.029, -1], [-0.029, 1]].forEach(([z, s]) => {
+      mk(disc(0.56, 0.012), M.gold, g, 0, 0, z);
+      mk(new RoundedBoxGeometry(0.52, 0.15, 0.012, 2, 0.005), M.gold, g, s * 0.76, 0, z);
+    });
     [-1, 1].forEach(s => {
-      mk(new THREE.BoxGeometry(0.1, 0.34, 0.13), steel, g, s * 1.08, 0, 0);
+      mk(new RoundedBoxGeometry(0.1, 0.36, 0.14, 3, 0.03), M.steel, g, s * 1.08, 0, 0);
       const wire = new THREE.CatmullRomCurve3([[1.08, -0.12], [1.08, -0.85], [0.56, -1.35], [0.56, -2.2]].map(([x, y]) => new THREE.Vector3(s * x, y, 0)));
-      mk(new THREE.TubeGeometry(wire, 80, 0.032, 12), steel, g);
+      mk(new THREE.TubeGeometry(wire, 120, 0.032, 16), M.steel, g);
     });
     const base = new THREE.Shape();
     base.absarc(-0.72, 0, 0.28, Math.PI / 2, Math.PI * 1.5, false);
     base.absarc(0.72, 0, 0.28, -Math.PI / 2, Math.PI / 2, false);
-    const baseGeo = new THREE.ExtrudeGeometry(base, { depth: 0.26, bevelEnabled: true, bevelSize: 0.04, bevelThickness: 0.04, bevelSegments: 4, curveSegments: 32 });
+    const baseGeo = new THREE.ExtrudeGeometry(base, { depth: 0.24, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05, bevelSegments: 8, curveSegments: 48 });
     baseGeo.center(); baseGeo.rotateX(Math.PI / 2);
-    mk(baseGeo, steel, g, 0, -1.58, 0);
+    mk(baseGeo, M.steel, g, 0, -1.58, 0);
     return g;
   }
 
-  function candles() {
-    const g = new THREE.Group(), C = [1.0, 0.86, 0.93, 0.72, 0.61, 0.68, 0.47, 0.33, 0.39, 0.14], Y = v => (v - 0.58) * 2;
-    let o = 1.06;
-    C.forEach((c, i) => {
-      const x = (i - (C.length - 1) / 2) * 0.22, top = Math.max(o, c), bot = Math.min(o, c), mat = c < o ? white : goldMatte;
-      mk(new THREE.BoxGeometry(0.13, Math.max(Y(top) - Y(bot), 0.04), 0.13), mat, g, x, (Y(top) + Y(bot)) / 2, 0);
-      const hi = Y(top) + 0.1 + (i % 3) * 0.05, lo = Y(bot) - 0.1 - (i % 2) * 0.06;
-      mk(new THREE.BoxGeometry(0.025, hi - lo, 0.025), mat, g, x, (hi + lo) / 2, 0);
-      o = c;
-    });
-    mk(new THREE.BoxGeometry(2.5, 0.05, 0.6), steel, g, 0, Y(0.14) - 0.35, 0);
+  // StockSense runs as an Android PWA, so its object is a phone showing the real backtest result
+  function drawScreen(c) {
+    const x = c.getContext('2d'), W = c.width;
+    const bg = x.createLinearGradient(0, 0, 0, c.height); bg.addColorStop(0, '#0e1222'); bg.addColorStop(1, '#181d35');
+    x.fillStyle = bg; x.fillRect(0, 0, W, c.height);
+    x.fillStyle = '#000'; x.beginPath(); x.arc(W / 2, 46, 15, 0, Math.PI * 2); x.fill();
+    const text = (s, font, color, px, py) => { x.font = font; x.fillStyle = color; x.fillText(s, px, py); };
+    text('15:30', '500 26px "JetBrains Mono", monospace', '#f5f6fa', 48, 58);
+    text('StockSense', '800 56px Archivo, sans-serif', '#f5f6fa', 48, 175);
+    text('NAIVE RULE · 2016–2026', '400 24px "JetBrains Mono", monospace', '#8a93ad', 48, 220);
+    text('−96.3%', '900 132px Archivo, sans-serif', '#ff6159', 40, 380);
+    text('3,572 trades', '400 26px "JetBrains Mono", monospace', '#c9cfdf', 48, 440);
+    text('win 42.0% · PF 0.85', '400 26px "JetBrains Mono", monospace', '#c9cfdf', 48, 480);
+    const top = 560, bot = 1000, L = 48, R = W - 48, n = 90; let seed = 7;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const pts = [];
+    for (let i = 0; i <= n; i++) {
+      const k = i / n, v = 100 * Math.pow(0.037, k) * (i && i < n ? 1 + (rnd() - 0.5) * 0.2 : 1);
+      pts.push([L + (R - L) * k, bot - (bot - top) * v / 112]);
+    }
+    const path = () => { x.beginPath(); pts.forEach(([px, py], i) => i ? x.lineTo(px, py) : x.moveTo(px, py)); };
+    const fill = x.createLinearGradient(0, top, 0, bot); fill.addColorStop(0, 'rgba(255,97,89,.35)'); fill.addColorStop(1, 'rgba(255,97,89,0)');
+    path(); x.lineTo(R, bot); x.lineTo(L, bot); x.closePath(); x.fillStyle = fill; x.fill();
+    path(); x.strokeStyle = '#ff6159'; x.lineWidth = 5; x.lineJoin = 'round'; x.stroke();
+    text('equity curve · shape illustrative', '400 20px "JetBrains Mono", monospace', '#5c6580', 48, bot + 44);
+    text('Every number shows the period', '400 28px Archivo, sans-serif', '#c9cfdf', 48, 1140);
+    text('it was measured on.', '400 28px Archivo, sans-serif', '#c9cfdf', 48, 1180);
+  }
+  function screenGeo(w, h, r) {
+    const g = new THREE.ShapeGeometry(roundRect(w, h, r), 24), p = g.attributes.position, uv = g.attributes.uv;
+    for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / w + 0.5, p.getY(i) / h + 0.5);
+    return g;
+  }
+  function phone() {
+    const g = new THREE.Group(), W = 1.25, H = 2.55, D = 0.13;
+    mk(new RoundedBoxGeometry(W, H, D, 10, 0.17), M.graphite, g);
+    const c = document.createElement('canvas'); c.width = 600; c.height = 1290;
+    drawScreen(c);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    document.fonts.load('900 100px Archivo').then(() => document.fonts.ready).then(() => { drawScreen(c); tex.needsUpdate = true; });
+    mk(screenGeo(W - 0.1, H - 0.1, 0.12), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }), g, 0, 0, D / 2 + 0.002);
+    mk(screenGeo(W - 0.1, H - 0.1, 0.12), M.sheen, g, 0, 0, D / 2 + 0.004);
+    mk(new RoundedBoxGeometry(0.03, 0.34, 0.05, 2, 0.012), M.graphite, g, W / 2 + 0.008, 0.6, 0);
+    mk(new RoundedBoxGeometry(0.03, 0.2, 0.05, 2, 0.012), M.graphite, g, W / 2 + 0.008, 0.18, 0);
+    mk(new RoundedBoxGeometry(0.44, 0.44, 0.05, 4, 0.11), M.graphite, g, -0.3, 0.9, -D / 2 - 0.018);
     return g;
   }
 
-  function bubble(w, h, r) {
+  function bubbleShape(w, h, r) {
     const s = new THREE.Shape(), x0 = -w / 2, x1 = w / 2, y0 = -h / 2, y1 = h / 2;
-    s.moveTo(x0 + r, y0); s.lineTo(x0 + w * 0.3, y0); s.lineTo(x0 + w * 0.18, y0 - 0.3); s.lineTo(x0 + w * 0.45, y0);
+    s.moveTo(x0 + r, y0); s.lineTo(x0 + w * 0.3, y0); s.lineTo(x0 + w * 0.17, y0 - 0.3); s.lineTo(x0 + w * 0.46, y0);
     s.lineTo(x1 - r, y0); s.quadraticCurveTo(x1, y0, x1, y0 + r);
     s.lineTo(x1, y1 - r); s.quadraticCurveTo(x1, y1, x1 - r, y1);
     s.lineTo(x0 + r, y1); s.quadraticCurveTo(x0, y1, x0, y1 - r);
     s.lineTo(x0, y0 + r); s.quadraticCurveTo(x0, y0, x0 + r, y0);
-    return new THREE.ExtrudeGeometry(s, { depth: 0.16, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 4, curveSegments: 16 }).translate(0, 0, -0.08);
+    return s;
   }
   function bubbles() {
-    const g = new THREE.Group();
-    const a = mk(bubble(1.5, 0.95, 0.3), white, g, -0.32, 0.45, 0.15); a.rotation.z = 0.05;
-    [-0.32, 0, 0.32].forEach(x => { mk(new THREE.SphereGeometry(0.075, 20, 14), ink, a, x, 0.02, 0.13).scale.z = 0.5; });
+    const g = new THREE.Group(), opt = { depth: 0.12, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.1, bevelSegments: 10, curveSegments: 48 };
+    const a = mk(new THREE.ExtrudeGeometry(bubbleShape(1.55, 1.0, 0.4), opt).translate(0, 0, -0.06), M.clay, g, -0.32, 0.45, 0.15);
+    a.rotation.z = 0.05;
+    [-0.34, 0, 0.34].forEach(x => { mk(new THREE.SphereGeometry(0.085, 32, 16), M.ink, a, x, 0.02, 0.16).scale.z = 0.45; });
     // the reply, mirrored, with an exclamation mark on the side facing us
-    const b = mk(bubble(1.3, 0.85, 0.28), goldMatte, g, 0.45, -0.55, -0.2); b.rotation.set(0, Math.PI, -0.06);
-    mk(new THREE.CylinderGeometry(0.055, 0.045, 0.36, 16), ink, b, 0, 0.08, -0.13);
-    mk(new THREE.SphereGeometry(0.06, 16, 12), ink, b, 0, -0.22, -0.13);
+    const b = mk(new THREE.ExtrudeGeometry(bubbleShape(1.3, 0.88, 0.36), opt).translate(0, 0, -0.06), M.clayGold, g, 0.45, -0.58, -0.25);
+    b.rotation.set(0, Math.PI, -0.06);
+    mk(new THREE.CapsuleGeometry(0.055, 0.26, 8, 16), M.ink, b, 0, 0.09, -0.16);
+    mk(new THREE.SphereGeometry(0.065, 24, 16), M.ink, b, 0, -0.22, -0.16);
     return g;
   }
 
   function galon() {
-    const g = new THREE.Group(), V = (x, y) => new THREE.Vector2(x, y);
-    const prof = [V(0.001, -0.95), V(0.5, -0.95), V(0.6, -0.9), V(0.62, -0.8), V(0.62, -0.52), V(0.58, -0.47), V(0.62, -0.42), V(0.62, 0.02), V(0.58, 0.07), V(0.62, 0.12), V(0.62, 0.34), V(0.56, 0.52), V(0.38, 0.7), V(0.21, 0.78), V(0.19, 0.92)];
-    mk(new THREE.LatheGeometry(prof, 72), plastic, g).renderOrder = 2;
-    const water = prof.filter(p => p.y < 0.36).map(p => V(Math.max(0.001, p.x * 0.95), p.y + 0.01));
-    water.push(V(0.001, 0.36));
-    mk(new THREE.LatheGeometry(water, 72), waterMat, g).renderOrder = 1;
-    mk(new THREE.CylinderGeometry(0.215, 0.215, 0.17, 40), capBlue, g, 0, 1.0, 0);
-    mk(new THREE.TorusGeometry(0.2, 0.025, 10, 40), capBlue, g, 0, 0.9, 0).rotation.x = Math.PI / 2;
+    const g = new THREE.Group();
+    const prof = new THREE.SplineCurve([V2(0.001, -1), V2(0.5, -1), V2(0.61, -0.95), V2(0.63, -0.82), V2(0.63, -0.5), V2(0.6, -0.46), V2(0.63, -0.42), V2(0.63, 0), V2(0.6, 0.04), V2(0.63, 0.08), V2(0.63, 0.3), V2(0.58, 0.5), V2(0.42, 0.68), V2(0.25, 0.78), V2(0.205, 0.84), V2(0.2, 0.95)]).getPoints(160);
+    mk(new THREE.LatheGeometry(prof, 96), M.plastic, g).renderOrder = 3;
+    const water = prof.filter(p => p.y < 0.28).map(p => V2(Math.max(0.001, p.x * 0.955), p.y + 0.012));
+    water.push(V2(0.001, 0.29));
+    mk(new THREE.LatheGeometry(water, 96), M.water, g).renderOrder = 2;
+    const cap = new THREE.SplineCurve([V2(0.001, 0.93), V2(0.2, 0.93), V2(0.228, 0.95), V2(0.234, 1.0), V2(0.234, 1.08), V2(0.222, 1.12), V2(0.18, 1.135), V2(0.001, 1.135)]).getPoints(60);
+    mk(new THREE.LatheGeometry(cap, 72), M.cap, g);
     return g;
   }
 
-  function die() {
-    const g = new THREE.Group(), s = new THREE.Shape(), a = 0.32, r = 0.1;
-    s.moveTo(-a + r, -a); s.lineTo(a - r, -a); s.quadraticCurveTo(a, -a, a, -a + r);
-    s.lineTo(a, a - r); s.quadraticCurveTo(a, a, a - r, a);
-    s.lineTo(-a + r, a); s.quadraticCurveTo(-a, a, -a, a - r);
-    s.lineTo(-a, -a + r); s.quadraticCurveTo(-a, -a, -a + r, -a);
-    const geo = new THREE.ExtrudeGeometry(s, { depth: 0.64, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.1, bevelSegments: 5, curveSegments: 10 });
-    geo.center();
-    mk(geo, ivory, g);
-    // pips: opposite faces add up to 7
-    const H = 0.421, d = 0.2, up = new THREE.Vector3(0, 1, 0), pip = new THREE.CylinderGeometry(0.072, 0.072, 0.02, 24);
-    const L = { 1: [[0, 0]], 2: [[-1, -1], [1, 1]], 3: [[-1, -1], [0, 0], [1, 1]], 4: [[-1, -1], [1, -1], [-1, 1], [1, 1]], 5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]], 6: [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]] };
-    [[1, [0, 0, 1], [1, 0, 0], [0, 1, 0]], [6, [0, 0, -1], [1, 0, 0], [0, 1, 0]], [3, [1, 0, 0], [0, 0, 1], [0, 1, 0]], [4, [-1, 0, 0], [0, 0, 1], [0, 1, 0]], [2, [0, 1, 0], [1, 0, 0], [0, 0, 1]], [5, [0, -1, 0], [1, 0, 0], [0, 0, 1]]].forEach(([n, nv, uv, vv]) => {
-      const N = new THREE.Vector3(...nv), U = new THREE.Vector3(...uv), Vv = new THREE.Vector3(...vv), q = new THREE.Quaternion().setFromUnitVectors(up, N);
-      L[n].forEach(([u, v]) => { const m = mk(pip, ink, g); m.position.copy(N).multiplyScalar(H).addScaledVector(U, u * d).addScaledVector(Vv, v * d); m.quaternion.copy(q); });
+  function candles() {
+    const g = new THREE.Group(), C = [0.42, 0.56, 0.48, 0.7, 0.6, 0.78, 0.69, 0.9, 0.82], Y = v => (v - 0.6) * 2.4;
+    let o = 0.3;
+    C.forEach((c, i) => {
+      const x = (i - (C.length - 1) / 2) * 0.24, top = Math.max(o, c), bot = Math.min(o, c), mat = c > o ? M.clayGold : M.clay;
+      mk(new RoundedBoxGeometry(0.16, Math.max(Y(top) - Y(bot), 0.1), 0.16, 4, 0.035), mat, g, x, (Y(top) + Y(bot)) / 2, 0);
+      const hi = Y(top) + 0.12 + (i % 3) * 0.05, lo = Y(bot) - 0.12 - (i % 2) * 0.06;
+      mk(new THREE.CapsuleGeometry(0.018, hi - lo, 4, 12), mat, g, x, (hi + lo) / 2, 0);
+      o = c;
     });
-    return g;
-  }
-  function dice() {
-    const g = new THREE.Group();
-    const a = die(); a.position.set(-0.55, -0.15, 0.1); a.rotation.set(0.5, 0.7, 0.1); g.add(a);
-    const b = die(); b.position.set(0.6, 0.3, -0.25); b.rotation.set(-0.4, 2.2, 0.3); g.add(b);
+    mk(new RoundedBoxGeometry(2.4, 0.08, 0.7, 4, 0.035), M.graphite, g, 0, Y(0.3) - 0.24, 0);
     return g;
   }
 
@@ -430,63 +466,74 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
     const pivot = new THREE.Group(); pivot.add(obj); return pivot;
   }
 
-  const objs = [fit(crystal(), 2.5), fit(candles(), 2.5), fit(bubbles(), 2.3), fit(galon(), 2.4), fit(dice(), 2.0)];
-  const N = objs.length, R = 3.2, ring = new THREE.Group();
-  const holders = objs.map((o, i) => {
-    const h = new THREE.Group(), a = i * 2 * Math.PI / N;
-    h.position.set(Math.sin(a) * R, 0, Math.cos(a) * R);
-    h.add(o); ring.add(h); return h;
-  });
-  scene.add(ring);
+  const rig = new THREE.Group(); scene.add(rig);
+  const objs = [fit(crystal(), 2.6), fit(phone(), 2.6), fit(bubbles(), 2.3), fit(galon(), 2.5), fit(candles(), 2.4)];
+  objs.forEach(o => { o.visible = false; rig.add(o); });
+  const vis = objs.map(() => 0), N = objs.length;
 
-  let w = 0, h = 0;
+  // soft contact shadow
+  const sc = document.createElement('canvas'); sc.width = sc.height = 256;
+  const sx = sc.getContext('2d'), grad = sx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  grad.addColorStop(0, 'rgba(0,0,0,.5)'); grad.addColorStop(1, 'rgba(0,0,0,0)');
+  sx.fillStyle = grad; sx.fillRect(0, 0, 256, 256);
+  const shadow = mk(new THREE.PlaneGeometry(2.8, 2.8), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(sc), transparent: true, depthWrite: false, toneMapped: false }), rig, 0, -1.5, 0);
+  shadow.rotation.x = -Math.PI / 2;
+
   function fitCam() {
-    w = host.clientWidth; h = host.clientHeight;
+    const w = host.clientWidth, h = host.clientHeight, asp = w / h;
     renderer.setSize(w, h, false);
-    const asp = w / h, d = Math.max(7, 5.6 / asp), visH = 2 * d * Math.tan(Math.PI / 12);
-    camera.aspect = asp;
-    camera.position.set(0, 0.3, R + d); camera.lookAt(0, 0, R);
+    const d = Math.max(9.3, 6.2 / asp), visH = 2 * d * Math.tan(Math.PI / 12);
+    camera.aspect = asp; camera.position.set(0, 0.6, d); camera.lookAt(0, 0, 0);
     camera.updateProjectionMatrix();
-    ring.position.y = asp < 0.8 ? visH * 0.14 : 0.2;
-    scene.fog.near = d - 0.5; scene.fog.far = d + 7;
+    rig.position.y = asp < 0.8 ? visH * 0.14 : 0.1;
   }
   new ResizeObserver(fitCam).observe(host);
   fitCam();
 
-  let dragX = 0, tilt = 0, vel = 0, last = null;
-  host.addEventListener('pointerdown', e => { last = e; host.setPointerCapture(e.pointerId); });
+  // drag to spin, tap to flick, and a slight lean toward the cursor
+  let dragX = 0, tilt = 0, vel = 0, last = null, moved = 0;
+  const lean = { x: 0, y: 0, tx: 0, ty: 0 };
+  host.addEventListener('pointerdown', e => { last = e; moved = 0; host.setPointerCapture(e.pointerId); });
   host.addEventListener('pointermove', e => {
     if (!last) return;
-    vel = (e.clientX - last.clientX) * 0.012;
-    dragX += vel;
-    tilt = THREE.MathUtils.clamp(tilt + (e.clientY - last.clientY) * 0.006, -0.7, 0.7);
+    const dx = e.clientX - last.clientX, dy = e.clientY - last.clientY;
+    moved += Math.abs(dx) + Math.abs(dy);
+    vel = dx * 0.012; dragX += vel;
+    tilt = THREE.MathUtils.clamp(tilt + dy * 0.006, -0.6, 0.6);
     last = e;
   });
-  ['pointerup', 'pointercancel'].forEach(t => host.addEventListener(t, () => { last = null; }));
+  host.addEventListener('pointerup', () => { if (moved < 6) vel += 0.35; last = null; });
+  host.addEventListener('pointercancel', () => { last = null; });
+  window.addEventListener('pointermove', e => { lean.tx = (e.clientX / innerWidth - 0.5) * 0.5; lean.ty = (e.clientY / innerHeight - 0.5) * 0.3; });
 
   let visible = true;
   new IntersectionObserver(([en]) => { visible = en.isIntersecting; }).observe(host);
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const clock = new THREE.Clock(), ease = t => 1 - Math.pow(1 - Math.min(t, 1), 3);
-  let oi = 0;
+  const clock = new THREE.Clock(), smooth = v => v * v * (3 - 2 * v);
 
-  (function frame() {
-    requestAnimationFrame(frame);
+  renderer.setAnimationLoop(() => {
     if (!visible) return;
-    const t = clock.getElapsedTime(), m = reduce ? 0 : 1;
-    const target = Math.min(N - 1, Math.max(0, S.p - 1));
-    oi += (target - oi) * (reduce ? 1 : 0.08);
-    if (!last) { vel *= 0.94; dragX += vel; }
-    ring.rotation.y = -oi * 2 * Math.PI / N;
-    holders.forEach((hd, i) => {
-      hd.rotation.y = -ring.rotation.y - 0.5 + m * t * 0.25 + dragX;
-      hd.rotation.x = 0.1 + tilt + m * Math.sin(t * 0.8 + i) * 0.05;
-      hd.position.y = m * Math.sin(t * 1.1 + i * 1.7) * 0.06;
+    const t = clock.getElapsedTime(), m = reduce ? 0 : 1, k = reduce ? 1 : 0.075;
+    const active = Math.min(N - 1, Math.max(0, Math.round(S.p) - 1));
+    if (!last) { vel *= 0.95; dragX += vel; tilt *= 0.96; }
+    lean.x += (lean.tx - lean.x) * 0.06; lean.y += (lean.ty - lean.y) * 0.06;
+    const bob = m * Math.sin(t * 1.2) * 0.07;
+    let shown = 0;
+    objs.forEach((o, i) => {
+      vis[i] += ((i === active ? 1 : 0) - vis[i]) * k;
+      const e = smooth(Math.min(1, Math.max(0, vis[i])));
+      shown = Math.max(shown, e);
+      o.visible = e > 0.003;
+      if (!o.visible) return;
+      o.scale.setScalar(e);
+      o.position.y = (1 - e) * -0.9 + bob;
+      o.rotation.y = -0.35 + m * Math.sin(t * 0.55 + i) * 0.35 + (1 - e) * (i < active ? -2.6 : 2.6) + dragX + lean.x;
+      o.rotation.x = 0.06 + tilt + lean.y + m * Math.sin(t * 0.8 + i) * 0.04;
     });
-    holders[0].scale.setScalar(0.75 + 0.25 * (reduce ? 1 : ease(t / 1.6)));
-    scene.fog.color.setRGB(S.bg[0] / 255, S.bg[1] / 255, S.bg[2] / 255).convertSRGBToLinear();
+    shadow.material.opacity = shown * (1 - bob * 2);
+    shadow.scale.setScalar(1 - bob * 0.8);
     renderer.render(scene, camera);
-  })();
+  });
 })();
 </script>
 </body>
