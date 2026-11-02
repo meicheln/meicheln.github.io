@@ -16,6 +16,9 @@
   --ink: #0d1020;
   --white: #f5f6fa;
   --gold: #e9bd62;
+  --graphite: #22252d;
+  --leg: #b4bac6;
+  --rule: rgb(13 16 32 / .16);
   --sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
   --serif: "Newsreader", "Iowan Old Style", Georgia, serif;
   --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
@@ -33,7 +36,9 @@ a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
 
 /* Stage */
 .track { position: relative; color: var(--white); }
-.stage { position: sticky; top: 0; height: 100svh; margin-bottom: -100svh; overflow: hidden; background: var(--blue); }
+.stage { position: sticky; top: 0; height: 100svh; overflow: hidden; background: var(--blue); }
+/* pull the first step up over the stage; a negative margin on the sticky stage itself would keep it stuck past the track */
+.stage + .step { margin-top: -100svh; }
 .giant { position: absolute; inset: 0; z-index: 1; pointer-events: none; user-select: none; }
 .word {
   position: absolute; left: 0; right: 0; top: 50%; text-align: center;
@@ -82,8 +87,43 @@ a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
 .index a:hover { text-decoration: underline; text-underline-offset: 4px; }
 
 /* After the stage */
-.about { background: var(--paper); color: var(--ink); padding-block: clamp(80px, 12vw, 150px); }
-.about p { margin: 0; max-width: 23em; font: italic 400 clamp(26px, 3.6vw, 46px)/1.22 var(--serif); text-wrap: pretty; }
+/* About, laid out as a component datasheet */
+.about { background: var(--paper); color: var(--ink); padding-block: clamp(72px, 10vw, 128px); }
+.sheet-head { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 32px; align-items: end; padding-bottom: 14px; border-bottom: 2px solid var(--ink); font: 400 12px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .07em; }
+.sheet-head b { font: 800 clamp(30px, 4.4vw, 56px)/1 var(--sans); letter-spacing: -.03em; text-transform: none; }
+.sheet-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px 64px; margin-top: 44px; }
+.sheet-grid > * { min-width: 0; }
+.about h3 { margin: 0 0 14px; font: 500 12px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .07em; }
+.about h3 span { margin-right: 10px; color: var(--blue); }
+.about .lede-about { margin: 0 0 18px; font: italic 400 clamp(22px, 2.4vw, 30px)/1.3 var(--serif); text-wrap: pretty; }
+.about p { margin: 0 0 32px; max-width: 36em; }
+.feat { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; max-width: 36em; }
+.feat li { position: relative; padding-left: 22px; }
+.feat li::before { content: ""; position: absolute; left: 0; top: .75em; width: 12px; height: 1px; background: currentColor; }
+.chip { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; }
+.pins { display: grid; gap: 10px; padding-block: 20px; }
+.pin { display: flex; align-items: center; gap: 8px; padding: 0; border: 0; background: none; color: var(--ink); font: 500 12px/1 var(--mono); cursor: pointer; }
+.pins.l .pin { justify-content: flex-end; }
+.pins.r .pin { flex-direction: row-reverse; justify-content: flex-end; }
+.pin small { width: 2ch; text-align: center; font-size: 10px; opacity: .55; }
+.pin i { width: 26px; height: 9px; background: var(--leg); transition: background .2s; }
+.pin:hover i, .pin.on i { background: var(--blue); }
+.pin.on { color: var(--blue); }
+.pin:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+.die { position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 24px; min-height: 320px; padding: 34px 20px 20px; border-radius: 6px; background: var(--graphite); color: var(--white); }
+.die::before { content: ""; position: absolute; top: 14px; left: 14px; width: 10px; height: 10px; border-radius: 50%; background: rgb(255 255 255 / .22); }
+.die-mark { font: 500 11px/1.5 var(--mono); letter-spacing: .1em; opacity: .55; }
+.die-code { font: 500 12px/1 var(--mono); color: var(--gold); }
+.die-name { margin: 8px 0 10px; font: 700 clamp(22px, 2.4vw, 30px)/1.05 var(--sans); }
+.die p { margin: 0 0 14px; font-size: 15px; color: rgb(245 246 250 / .8); }
+.die-used { font: 400 12px/1.6 var(--mono); }
+.die-used a { color: var(--white); }
+.hint { margin-top: 12px; font: 400 12px/1.4 var(--mono); opacity: .6; }
+.table-box { overflow-x: auto; }
+.spec { width: 100%; border-collapse: collapse; font-size: 15px; }
+.spec th, .spec td { padding: 10px 14px 10px 0; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); }
+.spec th { font: 500 11px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .07em; }
+.spec td:first-child { font-family: var(--mono); font-size: 13px; white-space: nowrap; }
 .contact { background: var(--blue); color: var(--white); padding-block: clamp(72px, 10vw, 128px) 32px; }
 .contact a { color: var(--white); }
 .label { font: 400 12px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .07em; }
@@ -101,6 +141,7 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
   .step ul, .index { justify-self: start; text-align: left; }
   .readout { font-size: 10px; }
   .right nav { gap: 16px; }
+  .sheet-head, .sheet-grid { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
   .word { transition: opacity .2s; }
@@ -227,9 +268,115 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
 
 <section class="about" id="about">
   <div class="wrap">
-    <p>I like projects where a number tells you whether you were right: a crystal's frequency, a backtest's return, an order that did or didn't get recorded. I'd rather show a bad number I can explain than a good one I can't.</p>
+    <div class="sheet-head">
+      <b>MEICHEL-2026</b>
+      <span>Electronics student · Indonesia</span>
+      <span>Datasheet · Rev 1.4 · Nov 2026</span>
+    </div>
+
+    <div class="sheet-grid">
+      <div>
+        <h3><span>1</span>General description</h3>
+        <p class="lede-about">I like projects where a number tells you whether you were right: a crystal's frequency, a backtest's return, an order that did or didn't get recorded.</p>
+        <p>I'm Meichel, an electronics student in Indonesia. My work sits where hardware meets data: I design a circuit, write the software that reads it, then test the result against something that could prove me wrong. The same habit carries over to markets, where I check strategies against chance, and to the refill water depot we run, where orders now arrive through WhatsApp.</p>
+        <h3><span>2</span>Features</h3>
+        <ul class="feat">
+          <li>Designs analog front-ends and verifies them in simulation before soldering.</li>
+          <li>Builds data tools in Python, with tests for look-ahead leakage and exchange rounding rules.</li>
+          <li>Ships small full-stack apps in React and Node that keep working without an API key.</li>
+          <li>Automates small-business work with WhatsApp and Google Sheets.</li>
+          <li>Publishes the disappointing result next to the good one.</li>
+        </ul>
+      </div>
+
+      <div>
+        <h3><span>3</span>Pin configuration</h3>
+        <div class="chip">
+          <div class="pins l" id="pins-l"></div>
+          <div class="die" aria-live="polite">
+            <div class="die-mark">MEICHEL-2026 · ID · WIB</div>
+            <div id="die-info"></div>
+          </div>
+          <div class="pins r" id="pins-r"></div>
+        </div>
+        <div class="hint">Tap a pin to see where I used it.</div>
+      </div>
+
+      <div>
+        <h3><span>4</span>Operating conditions</h3>
+        <div class="table-box">
+          <table class="spec">
+            <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td>Location</td><td>Indonesia, WIB (UTC+7)</td></tr>
+              <tr><td>Languages</td><td>Bahasa Indonesia, English</td></tr>
+              <tr><td>Open to</td><td>Freelance in embedded electronics, data tools and small web apps</td></tr>
+              <tr><td>Unverified numbers</td><td>0 on this site</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <h3><span>5</span>Revision history</h3>
+        <div class="table-box">
+          <table class="spec">
+            <thead><tr><th>Rev</th><th>Date</th><th>Change</th></tr></thead>
+            <tbody>
+              <tr><td>1.0</td><td>Jun 2026</td><td>QCM oscillator drawn in EasyEDA Pro</td></tr>
+              <tr><td>1.1</td><td>Aug 2026</td><td>Kontra built, with an offline fallback opponent</td></tr>
+              <tr><td>1.2</td><td>Sep 2026</td><td>StockSense published on GitHub under MIT</td></tr>
+              <tr><td>1.3</td><td>Oct 2026</td><td>Depot Air WA and the trading research tools</td></tr>
+              <tr><td>1.4</td><td>Nov 2026</td><td>This site</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
+
+<script>
+// datasheet pinout: pins 1–6 down the left, 7–12 up the right, like a real DIP package
+(() => {
+  const PROJ = { qcm: 'QCM sensor', stocksense: 'StockSense', kontra: 'Kontra', depot: 'Depot Air WA', trading: 'Trading lab' };
+  const PINS = [
+    ['EDA', 'EasyEDA Pro', 'Schematics drawn and checked until the design-rule check is clean.', ['qcm']],
+    ['OSC', 'Oscillator design', 'Pierce oscillators and crystal models (Butterworth–Van Dyke), sized by calculation.', ['qcm']],
+    ['MCU', 'Arduino', 'An Arduino Due counts the sensor frequency.', ['qcm']],
+    ['PINE', 'Pine Script', 'TradingView indicators that log the result of every signal.', ['trading']],
+    ['MQL5', 'MQL5', 'MetaTrader 5 Expert Advisors, backtested headless in the strategy tester.', ['trading']],
+    ['BT', 'Backtesting', 'Strategies compared with a random baseline, spread included.', ['stocksense', 'trading']],
+    ['MCP', 'MCP servers', 'Gives Claude live market data from TradingView, Yahoo Finance and CoinGecko.', ['trading']],
+    ['GAS', 'Apps Script', 'Google Sheets reports filled automatically from an app.', ['depot']],
+    ['NODE', 'Node.js', 'WhatsApp automation with Baileys and small JSON APIs.', ['depot', 'kontra']],
+    ['TS', 'TypeScript + React', 'Vite front-ends with typed schemas.', ['kontra']],
+    ['ML', 'scikit-learn', 'Five models, each audited separately before it is trusted.', ['stocksense']],
+    ['PY', 'Python', 'Numerical solvers, Flask apps and data pipelines, with tests.', ['qcm', 'stocksense', 'trading']],
+  ];
+  const info = document.getElementById('die-info'), buttons = [];
+  function select(n) {
+    const [code, name, desc, used] = PINS[n - 1];
+    buttons.forEach(b => b.classList.toggle('on', +b.dataset.n === n));
+    info.innerHTML = `<div class="die-code">${code} · pin ${n}</div><div class="die-name">${name}</div><p>${desc}</p>` +
+      `<div class="die-used">Used in: ${used.map(k => `<a href="#${k}">${PROJ[k]}</a>`).join(', ')}</div>`;
+  }
+  function pin(n) {
+    const b = document.createElement('button');
+    b.className = 'pin'; b.type = 'button'; b.dataset.n = n;
+    b.setAttribute('aria-label', `Pin ${n}: ${PINS[n - 1][1]}`);
+    b.innerHTML = `${PINS[n - 1][0]}<small>${n}</small><i></i>`;
+    b.addEventListener('click', () => select(n));
+    b.addEventListener('mouseenter', () => select(n));
+    buttons.push(b);
+    return b;
+  }
+  const l = document.getElementById('pins-l'), r = document.getElementById('pins-r');
+  for (let n = 1; n <= 6; n++) l.append(pin(n));
+  for (let n = 12; n >= 7; n--) r.append(pin(n));
+  select(12);
+})();
+</script>
 
 <section class="contact" id="contact">
   <div class="wrap">
