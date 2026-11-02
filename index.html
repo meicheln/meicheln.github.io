@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Meichel Portfolio</title>
-<meta name="description" content="Meichel, electronics student in Indonesia. A QCM gas sensor, the StockSense IDX scanner, and other tools that publish their real numbers.">
+<meta name="description" content="Meichel, biomedical engineering student at ITERA in Lampung, Indonesia. A QCM gas sensor, the StockSense IDX scanner, and other tools that publish their real numbers.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -58,7 +58,7 @@ a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
 .chrome { position: absolute; inset: 0 0 auto; z-index: 4; pointer-events: none; }
 .chrome .wrap { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-block: 22px; }
 .chrome a { pointer-events: auto; color: var(--white); }
-.name { font: italic 400 30px/1 var(--serif); text-decoration: none; }
+.name { font: 600 17px/1 var(--sans); text-transform: uppercase; letter-spacing: .22em; text-decoration: none; }
 .right { display: grid; justify-items: end; gap: 14px; }
 .right nav { display: flex; gap: 24px; font: 500 13px/1 var(--sans); letter-spacing: .02em; }
 .right nav a { text-decoration: none; }
@@ -219,7 +219,7 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
   <section class="step" id="intro">
     <div class="wrap"><div class="col">
       <h1 class="sr">Meichel</h1>
-      <p class="lead">Electronics student in Indonesia. I build <em>sensors</em>, market tools and the software around them, and I publish the numbers even when they come out bad.</p>
+      <p class="lead">Biomedical engineering student at ITERA, Lampung. I build <em>sensors</em>, market tools and the software around them, and I publish the numbers even when they come out bad.</p>
       <nav class="index" aria-label="Projects">
         <span>Five projects, each one you can try</span>
         <a href="#qcm">QCM gas sensor</a>
@@ -321,7 +321,7 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
 </div>
 
 <div class="clock" aria-hidden="true">
-  <b id="clk-main">--:--:--</b><span class="live"></span>Jakarta · WIB
+  <b id="clk-main">--:--:--</b><span class="live"></span>Lampung · WIB
   <div class="clock-row" id="clk-row"></div>
 </div>
 
@@ -329,7 +329,7 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
   <div class="wrap">
     <div class="sheet-head">
       <b>MEICHEL-2026</b>
-      <span>Electronics student · Indonesia</span>
+      <span>Biomedical Engineering · ITERA · Lampung</span>
       <span>Datasheet · Rev 1.4 · Nov 2026</span>
     </div>
 
@@ -337,7 +337,7 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
       <div>
         <h3><span>1</span>General description</h3>
         <p class="lede-about">I like projects where a number tells you whether you were right: a crystal's frequency, a backtest's return, an order that did or didn't get recorded.</p>
-        <p>I'm Meichel, an electronics student in Indonesia. My work sits where hardware meets data: I design a circuit, write the software that reads it, then test the result against something that could prove me wrong. The same habit carries over to markets, where I check strategies against chance, and to the refill water depot we run, where orders now arrive through WhatsApp.</p>
+        <p>I'm Meichel, a biomedical engineering student at Institut Teknologi Sumatera (ITERA) in Lampung. My work sits where hardware meets data: I design a circuit, write the software that reads it, then test the result against something that could prove me wrong. The same habit carries over to markets, where I check strategies against chance, and to the refill water depot we run, where orders now arrive through WhatsApp.</p>
         <h3><span>2</span>Features</h3>
         <ul class="feat">
           <li>Designs analog front-ends and verifies them in simulation before soldering.</li>
@@ -367,7 +367,8 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
           <table class="spec">
             <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
             <tbody>
-              <tr><td>Location</td><td>Indonesia, WIB (UTC+7)</td></tr>
+              <tr><td>Study</td><td>Biomedical Engineering, Institut Teknologi Sumatera (ITERA)</td></tr>
+              <tr><td>Location</td><td>Lampung, Indonesia · WIB (UTC+7)</td></tr>
               <tr><td>Languages</td><td>Bahasa Indonesia, English</td></tr>
               <tr><td>Open to</td><td>Freelance in embedded electronics, data tools and small web apps</td></tr>
               <tr><td>Unverified numbers</td><td>0 on this site</td></tr>
@@ -445,7 +446,7 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
   select(12);
 })();
 
-// world clock: Jakarta first, three other markets underneath
+// world clock: home time first (Lampung runs on WIB, the Asia/Jakarta zone), three other markets underneath
 (() => {
   const fmt = (tz, sec) => new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: sec ? '2-digit' : undefined, hourCycle: 'h23' });
   const main = fmt('Asia/Jakarta', true), others = [['LDN', 'Europe/London'], ['NYC', 'America/New_York'], ['TYO', 'Asia/Tokyo']].map(([c, tz]) => [c, fmt(tz, false)]);
