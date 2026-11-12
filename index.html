@@ -79,9 +79,17 @@ a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
 .chrome a { pointer-events: auto; color: var(--white); }
 .name { font: 600 17px/1 var(--sans); text-transform: uppercase; letter-spacing: .22em; text-decoration: none; }
 .right { display: grid; justify-items: end; gap: 14px; }
-.right nav { display: flex; gap: 24px; font: 500 13px/1 var(--sans); letter-spacing: .02em; }
-.right nav a { text-decoration: none; }
-.right nav a:hover { text-decoration: underline; text-underline-offset: 4px; }
+/* Pill navigation: fixed and frosted; the white indicator slides to the section in view */
+.pill {
+  position: fixed; z-index: 21; top: max(16px, env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%);
+  display: flex; gap: 2px; padding: 5px; border: 1px solid rgb(244 245 247 / .14); border-radius: 999px;
+  background: rgb(10 12 19 / .62); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); font: 500 13px/1 var(--sans);
+}
+.pill a { position: relative; z-index: 1; padding: 9px 14px; border-radius: 999px; color: var(--white); text-decoration: none; white-space: nowrap; transition: color .3s; }
+.pill a:hover { color: rgb(244 245 247 / .7); }
+.pill a.on, .pill a.on:hover { color: var(--ink); }
+.pill a:focus-visible { outline: 2px solid var(--white); outline-offset: 1px; }
+.pill-ind { position: absolute; top: 5px; bottom: 5px; left: 0; width: 0; border-radius: 999px; background: var(--white); opacity: 0; transition: left .45s cubic-bezier(.2, .8, .2, 1), width .45s cubic-bezier(.2, .8, .2, 1), opacity .3s; }
 .readout { text-align: right; color: var(--mute); font: 400 11px/1.5 var(--mono); text-transform: uppercase; letter-spacing: .06em; }
 .readout b { display: block; font: 500 clamp(20px, 2.2vw, 28px)/1.1 var(--mono); letter-spacing: 0; color: var(--white); font-variant-numeric: tabular-nums; }
 
@@ -194,11 +202,14 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
 @media (max-width: 760px) {
   .word span { font-size: 24vw; }
   .step .wrap { padding-top: 52svh; }
-  .readout { font-size: 10px; }
-  .right nav { gap: 16px; }
+  .readout { display: none; }   /* the QCM demo shows its own numbers on phones */
   .sheet-head, .sheet-grid { grid-template-columns: 1fr; }
+  .clock { bottom: auto; top: max(18px, env(safe-area-inset-top, 0px)); }
   .clock b { font-size: 16px; }
   .clock-row { display: none; }
+  .pill { top: auto; bottom: max(14px, env(safe-area-inset-bottom, 0px)); }
+  .step .wrap { padding-bottom: 92px; }   /* clear the bottom pill */
+  .contact { padding-bottom: 96px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .word span i { transition: opacity .2s; transform: none; }
@@ -207,6 +218,14 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
 </style>
 </head>
 <body>
+
+<nav class="pill" aria-label="Sections">
+  <span class="pill-ind" aria-hidden="true"></span>
+  <a href="#qcm" data-sec="work">Work</a>
+  <a href="#about" data-sec="about">About</a>
+  <a href="#contact" data-sec="contact">Contact</a>
+  <a href="https://github.com/meicheln" target="_blank" rel="noopener">GitHub ↗</a>
+</nav>
 
 <div class="track" id="top">
   <div class="stage" id="stage">
@@ -224,11 +243,6 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
       <div class="wrap">
         <a class="name" href="#top">Meichel</a>
         <div class="right">
-          <nav aria-label="Sections">
-            <a href="#qcm">Work</a>
-            <a href="#about">About</a>
-            <a href="https://github.com/meicheln" target="_blank" rel="noopener">GitHub ↗</a>
-          </nav>
           <div class="readout"><b id="freq">10.001410</b>MHz · <span id="df">Δf 0.0 Hz</span><br>simulated QCM oscillator</div>
         </div>
       </div>
@@ -489,6 +503,21 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
   const F0 = 10.001410, SENS = 0.2264;   // MHz, Hz per ng/cm² (from the oscillator simulation)
   let tops = [], jitter = 0, active = 0, holding = false, prev = performance.now();
 
+  // pill nav: slide the white indicator under the section in view
+  const pillLinks = [...document.querySelectorAll('.pill a[data-sec]')], ind = document.querySelector('.pill-ind');
+  let sec;
+  function setSec(s) {
+    if (s === sec) return;
+    sec = s;
+    const el = pillLinks.find(l => l.dataset.sec === s);
+    pillLinks.forEach(l => l.classList.toggle('on', l === el));
+    ind.style.opacity = el ? 1 : 0;
+    if (el) { ind.style.left = `${el.offsetLeft}px`; ind.style.width = `${el.offsetWidth}px`; }
+  }
+  const replace = () => { const s = sec; sec = undefined; setSec(s); };   // link widths change once fonts load
+  document.fonts.ready.then(replace);
+  window.addEventListener('resize', replace);
+
   // letters of each giant word arrive one after another
   words.forEach(w => { const s = w.querySelector('span'); s.innerHTML = [...s.textContent].map((ch, i) => `<i style="--d:${i * 45}ms">${ch === ' ' ? '&nbsp;' : ch}</i>`).join(''); });
 
@@ -606,6 +635,8 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
     S.p = progress();
     const a = Math.round(S.p);
     if (a !== active) { words[active].classList.remove('on'); words[a].classList.add('on'); active = a; }
+    const mid = innerHeight * 0.5;
+    setSec($('contact').getBoundingClientRect().top < mid ? 'contact' : $('about').getBoundingClientRect().top < mid ? 'about' : S.p >= 0.5 ? 'work' : null);
 
     S.mass = holding ? Math.min(3000, S.mass + 900 * dt) : S.mass * Math.exp(-dt / 1.2);
     if (S.mass < 0.5) S.mass = 0;
@@ -893,6 +924,47 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
   rig.add(key, key.target);
   const floor = mk(new THREE.PlaneGeometry(14, 14), new THREE.ShadowMaterial({ opacity: 0.55 }), rig, 0, -1.42, 0);
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
+
+  // a thin light trail orbiting the current object, with a brighter streak running along it
+  const glow = o => new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+  const orbit = new THREE.Group(); orbit.rotation.set(1.22, 0, -0.28); rig.add(orbit);
+  mk(new THREE.TorusGeometry(1.85, 0.005, 6, 240), glow(0.22), orbit);
+  const streak = mk(new THREE.TorusGeometry(1.85, 0.011, 6, 80, 1.1), glow(0.9), orbit);
+
+  // fine dust drifting through the studio light
+  const DN = 260, dpos = new Float32Array(DN * 3), dgeo = new THREE.BufferGeometry();
+  for (let i = 0; i < DN; i++) dpos.set([(Math.random() - 0.5) * 9, (Math.random() - 0.5) * 5, (Math.random() - 0.5) * 4], i * 3);
+  dgeo.setAttribute('position', new THREE.BufferAttribute(dpos, 3));
+  scene.add(new THREE.Points(dgeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.018, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending })));
+
+  // the cursor leaves a glossy white ribbon in the scene, lit by the same studio as the objects
+  const ribbon = new THREE.Mesh(new THREE.BufferGeometry(), P({ color: 0xf4f5f7, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.05 }));
+  ribbon.castShadow = true; ribbon.frustumCulled = false; scene.add(ribbon);
+  const trail = [], ptr = new THREE.Vector2(), tip = new THREE.Vector3(), hit = new THREE.Vector3(), ray = new THREE.Vector3();
+  let ptrSeen = -1e9, trailDirty = false;
+  window.addEventListener('pointermove', e => { ptr.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ptrSeen = performance.now(); });
+  function updateRibbon(now) {
+    if (now - ptrSeen < 120) {
+      // cursor on a plane just in front of the objects
+      ray.set(ptr.x, ptr.y, 0.5).unproject(camera).sub(camera.position).normalize();
+      hit.copy(camera.position).addScaledVector(ray, (1.6 - camera.position.z) / ray.z);
+      tip.lerp(hit, trail.length ? 0.5 : 1);
+      if (!trail.length || tip.distanceTo(trail[trail.length - 1]) > 0.03) { trail.push(tip.clone()); trailDirty = true; }
+      if (trail.length > 46) trail.shift();
+    } else if (trail.length) { trail.shift(); trailDirty = true; }   // idle: the tail eats itself in under a second
+    if (!trailDirty) return;
+    trailDirty = false;
+    if (trail.length < 4) { ribbon.visible = false; return; }
+    const curve = new THREE.CatmullRomCurve3(trail), segs = trail.length * 3, rad = 12;
+    const g = new THREE.TubeGeometry(curve, segs, 0.07, rad, false), pos = g.attributes.position, c = new THREE.Vector3(), v = new THREE.Vector3();
+    for (let i = 0; i <= segs; i++) {   // taper: thin tail, full head
+      curve.getPointAt(i / segs, c);
+      const s = Math.pow(i / segs, 0.8);
+      for (let j = 0; j <= rad; j++) { const n = i * (rad + 1) + j; v.fromBufferAttribute(pos, n).sub(c).multiplyScalar(s).add(c); pos.setXYZ(n, v.x, v.y, v.z); }
+    }
+    g.computeVertexNormals();
+    ribbon.geometry.dispose(); ribbon.geometry = g; ribbon.visible = true;
+  }
   const KEYS = ['qcm', 'stocksense', 'kontra', 'depot', 'trading'], vis = objs.map(() => 0), N = objs.length;
 
   // soft contact shadow
@@ -1002,6 +1074,15 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
     let moving = false;
     A.cur.forEach((c, i) => { const d = A.tgt[i] - c; if (Math.abs(d) > 0.001) { A.cur[i] += d * 0.12; moving = true; } });
     if (moving) layoutCandles();
+
+    orbit.scale.setScalar(Math.max(0.001, shown));
+    streak.rotation.z -= m * dt * 1.1;
+    if (m) {
+      for (let i = 0; i < DN; i++) { const j = i * 3 + 1; dpos[j] += dt * 0.06 * (1 + (i % 5) * 0.2); if (dpos[j] > 2.5) dpos[j] = -2.5; }
+      dgeo.attributes.position.needsUpdate = true;
+      camera.updateMatrixWorld();
+      updateRibbon(now);
+    }
 
     shadow.material.opacity = shown * 0.5 * (1 - bob * 2);
     shadow.scale.setScalar(1 - bob * 0.8);
