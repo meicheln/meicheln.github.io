@@ -71,6 +71,11 @@ a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
 .word.on span i { opacity: 1; transform: none; }
 .word em { display: block; margin-top: .3em; font: italic 400 clamp(22px, 2.6vw, 36px)/1 var(--serif); color: var(--mute); }
 #scope { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; pointer-events: none; }
+/* film grain over the render, so it reads as a photograph rather than clean CG */
+.stage::after {
+  content: ""; position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: .07; mix-blend-mode: overlay;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
 #gl { position: absolute; inset: 0; z-index: 3; cursor: grab; touch-action: pan-y; }
 #gl:active { cursor: grabbing; }
 #gl canvas { display: block; width: 100%; height: 100%; }
@@ -434,7 +439,7 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
     <div class="label">Work with me</div>
     <a class="big-link" href="https://github.com/meicheln" target="_blank" rel="noopener">github.com/meicheln ↗</a>
     <p>Open to freelance work in embedded electronics, data tools and small web apps.</p>
-    <footer>© 2026 Meichel · The objects are 3D models built in Three.js. The vapour demo uses the sensitivity from my oscillator simulation; the other demos run the same logic as the real projects, in your browser.</footer>
+    <footer>© 2026 Meichel · The objects are 3D models built in Three.js, lit by a studio HDRI from Poly Haven (CC0). The vapour demo uses the sensitivity from my oscillator simulation; the other demos run the same logic as the real projects, in your browser.</footer>
   </div>
 </section>
 
@@ -495,7 +500,7 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
 
 // stage: scroll progress, giant word, frequency readout, scope trace, and the demos
 (() => {
-  const S = window.S = { p: 0, vapour: 0, mass: 0, kick: {}, replay: -1, walk: null };
+  const S = window.S = { p: 0, vapour: 0, mass: 0, kick: {}, replay: -1 };
   const $ = id => document.getElementById(id);
   const steps = [...document.querySelectorAll('.step')], words = [...document.querySelectorAll('.word')];
   const scope = $('scope'), sc = scope.getContext('2d');
@@ -622,11 +627,10 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
     for (let i = 0; i < 469; i++) { const win = Math.random() < 1 / 3; wins += win; path.push(path[i] + (win ? 2 : -1)); }
     drawEquity(path);
     const net = path[469], sign = net > 0 ? '+' : net < 0 ? '−' : '';
-    $('simres').innerHTML = `Win rate <b>${(wins / 469 * 100).toFixed(1)}%</b> · net <b>${sign}${Math.abs(net)}R</b> · break-even 33.3%. Press again: pure chance swings both ways.`;
-    // the 3D candles redraw this run: ten points along the equity path, scaled into the chart's range
-    const pts = Array.from({ length: 10 }, (_, i) => path[Math.round(i * 469 / 9)]), lo = Math.min(...pts), hi = Math.max(...pts);
-    S.walk = pts.map(v => 0.3 + (v - lo) / (hi - lo || 1) * 0.6);
-    S.kick.trading = performance.now();
+    $('simres').innerHTML = `Win rate <b>${(wins / 469 * 100).toFixed(1)}%</b> · net <b>${sign}${Math.abs(net)}R</b> · break-even 33.3%. The coin lands on how the run ended. Press again: pure chance swings both ways.`;
+    // the 3D coin is tossed and lands on the side this run ended on
+    S.flip = net >= 0 ? 0 : 1;
+    S.flipAt = S.kick.trading = performance.now();
   });
 
   (function loop(now) {
@@ -651,6 +655,7 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
       $('ret').textContent = `${r < -0.05 ? '−' : ''}${Math.abs(r).toFixed(1)}%`;
     }
 
+    if (S.gl) return;   // the 3D scene draws its own trace behind the objects
     // the trace loses cycles as mass loads the crystal, like the real frequency shift
     const w = scope.clientWidth, h = scope.clientHeight;
     const cy = h * (w / h < 0.8 ? 0.34 : 0.5), amp = Math.min(h * 0.06, 46), cyc = 7.5 * (1 - S.mass / 3000 * 0.45), ph = reduce ? 0 : now / 700;
@@ -666,63 +671,130 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
 </script>
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
 <script type="module">
-// 3D: one object per project on the right of the stage; the current one pops in while the old one spins out
+// 3D: one photoreal object per project, lit by a real studio HDRI, with glass and water that refract the backdrop
 import * as THREE from 'three';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 (() => {
   const host = document.getElementById('gl'), S = window.S;
   let renderer;
-  try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); } catch (e) { return; }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  try { renderer = new THREE.WebGLRenderer({ antialias: true }); } catch (e) { return; }
+  // the canvas is opaque so glass can refract what is behind it; the giant word and scope trace are redrawn inside the scene
+  S.gl = true;
+  document.getElementById('scope').hidden = true;
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  renderer.setPixelRatio(DPR);
+  renderer.setClearColor(0x07080d);
   renderer.toneMapping = THREE.AgXToneMapping ?? THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
+  renderer.toneMappingExposure = 1.1;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.VSMShadowMap;
   host.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  // a dark product studio: the softbox reflections are what make metal, glass and clearcoat read as real
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+  scene.add(camera);
+
+  // lighting: a built softbox studio shows instantly, then a photographed studio (Poly Haven, CC0) replaces it
+  const pmrem = new THREE.PMREMGenerator(renderer);
   const studio = new THREE.Scene();
   studio.background = new THREE.Color(0x07080c);
   [[7, 3, [0, 6, 2], 5], [2.2, 7, [-6.5, 1, 2], 3.5], [2.2, 7, [6.5, 1.5, -1], 2.5], [9, 1.2, [0, -3.5, 5], 0.8], [3.5, 2.5, [0, 1, 8], 2]].forEach(([w, h, p, k]) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 1, 1).multiplyScalar(k), side: THREE.DoubleSide }));
     m.position.set(...p); m.lookAt(0, 0, 0); studio.add(m);
   });
-  scene.environment = new THREE.PMREMGenerator(renderer).fromScene(studio, 0.02).texture;
-  const key = new THREE.DirectionalLight(0xfff3e6, 2.2);
+  scene.environment = pmrem.fromScene(studio, 0.02).texture;
+  new RGBELoader().load('https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr', tex => {
+    tex.mapping = THREE.EquirectangularReflectionMapping;
+    scene.environment = pmrem.fromEquirectangular(tex).texture;
+    tex.dispose();
+  }, undefined, () => {});   // on failure the built studio simply stays
+  const key = new THREE.DirectionalLight(0xfff3e6, 2.0);
   key.position.set(2.5, 6, 3.5);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
   key.shadow.radius = 10; key.shadow.blurSamples = 20; key.shadow.bias = -0.0004;
   Object.assign(key.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3, near: 1, far: 15 });
-  const rim = new THREE.DirectionalLight(0xbfd0ff, 1.6); rim.position.set(-4, 2.5, -4); scene.add(rim);
-  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+  const rim = new THREE.DirectionalLight(0xbfd0ff, 1.4); rim.position.set(-4, 2.5, -4); scene.add(rim);
+
+  // backdrop: studio spotlight + the ghost number, painted to a texture so it shows through glass
+  const WORDS = [...document.querySelectorAll('.word')].map(w => [w.querySelector('span').textContent, w.querySelector('em')?.textContent || '']);
+  const bc = document.createElement('canvas'), bx = bc.getContext('2d'), btex = new THREE.CanvasTexture(bc);
+  btex.colorSpace = THREE.SRGBColorSpace;
+  const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: btex, toneMapped: false, depthWrite: false }));
+  backdrop.position.z = -30; backdrop.renderOrder = -1; camera.add(backdrop);
+  let wCur = -1, wPrev = -1, wT = 1, bdDirty = true;
+  function drawBackdrop() {
+    const W = bc.width, H = bc.height, px = W / host.clientWidth, narrow = W / H < 0.8;
+    bx.fillStyle = '#07080d'; bx.fillRect(0, 0, W, H);
+    bx.save(); bx.translate(W * (narrow ? 0.5 : 0.68), H * (narrow ? 0.36 : 0.46)); bx.scale(W * (narrow ? 0.9 : 0.7), H * (narrow ? 0.5 : 0.75));
+    const g = bx.createRadialGradient(0, 0, 0, 0, 0, 1);
+    g.addColorStop(0, '#1b2236'); g.addColorStop(0.48, '#0f1320'); g.addColorStop(1, '#07080d');
+    bx.fillStyle = g; bx.beginPath(); bx.arc(0, 0, 1, 0, Math.PI * 2); bx.fill(); bx.restore();
+    const vw = host.clientWidth, fs = (narrow ? vw * 0.24 : Math.min(360, Math.max(100, vw * 0.21))) * px, us = Math.min(36, Math.max(22, vw * 0.026)) * px;
+    const base = H * (narrow ? 0.34 : 0.5) + fs * 0.26, e = wT * wT * (3 - 2 * wT);
+    bx.textAlign = 'center';
+    const word = (i, a, dy) => {
+      if (i < 0 || a < 0.004) return;
+      const [num, unit] = WORDS[i];
+      if ('letterSpacing' in bx) bx.letterSpacing = `${-fs * 0.03}px`;
+      bx.font = `400 ${fs}px "Instrument Serif", Georgia, serif`; bx.fillStyle = `rgba(244,245,247,${0.09 * a})`; bx.fillText(num, W / 2, base + dy);
+      if ('letterSpacing' in bx) bx.letterSpacing = '0px';
+      if (unit) { bx.font = `italic 400 ${us}px "Instrument Serif", Georgia, serif`; bx.fillStyle = `rgba(244,245,247,${0.6 * a})`; bx.fillText(unit, W / 2, base + us * 1.7 + dy); }
+    };
+    word(wPrev, 1 - e, 0);
+    word(wCur, e, (1 - e) * fs * 0.08);
+    btex.needsUpdate = true;
+  }
+  document.fonts.load('400 100px "Instrument Serif"').then(() => document.fonts.ready).then(() => { bdDirty = true; });
+
+  // the oscillator trace, as a line in the scene behind the objects
+  const SN = 240, spos = new Float32Array(SN * 3), sgeo = new THREE.BufferGeometry();
+  sgeo.setAttribute('position', new THREE.BufferAttribute(spos, 3));
+  const trace = new THREE.Line(sgeo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.14, depthWrite: false, toneMapped: false }));
+  trace.position.z = -26; trace.frustumCulled = false; camera.add(trace);
+
+  // fine scratches: a roughness map shared by the metals, so nothing looks factory-perfect
+  const wear = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 512;
+    const x = c.getContext('2d');
+    x.fillStyle = '#c4c4c4'; x.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 2600; i++) {
+      const a = Math.random() * Math.PI, l = 6 + Math.random() * 40, px = Math.random() * 512, py = Math.random() * 512, v = 140 + Math.random() * 115 | 0;
+      x.strokeStyle = `rgba(${v},${v},${v},.4)`; x.lineWidth = 0.6;
+      x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l); x.stroke();
+    }
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 3); return t;
+  })();
 
   const P = o => new THREE.MeshPhysicalMaterial(o);
-  const glassy = (color, opacity, extra = {}) => P({ color, metalness: 0, roughness: 0.04, clearcoat: 1, clearcoatRoughness: 0.03, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false, ...extra });
+  const glass = o => P({ metalness: 0, roughness: 0.03, transmission: 1, ior: 1.5, thickness: 0.1, depthWrite: false, ...o });
+  const film = (color, opacity, extra = {}) => P({ color, metalness: 0, roughness: 0.04, clearcoat: 1, transparent: true, opacity, depthWrite: false, ...extra });
   const M = {
-    gold: P({ color: 0xf5a524, metalness: 1, roughness: 0.18, clearcoat: 0.3 }),   // pushed warm: AgX desaturates bright gold toward beige
-    steel: new THREE.MeshStandardMaterial({ color: 0xe1e5ec, metalness: 1, roughness: 0.2 }),
-    tin: new THREE.MeshStandardMaterial({ color: 0xc4c9d0, metalness: 1, roughness: 0.38 }),
-    clay: P({ color: 0xf7f7fb, roughness: 0.48, clearcoat: 0.3, clearcoatRoughness: 0.35 }),
-    clayGold: P({ color: 0xf0bf5e, roughness: 0.42, clearcoat: 0.35, clearcoatRoughness: 0.3 }),
-    ink: P({ color: 0x14161c, roughness: 0.3, clearcoat: 0.7 }),
-    graphite: P({ color: 0x252932, metalness: 0.55, roughness: 0.3, clearcoat: 0.9, clearcoatRoughness: 0.08 }),
+    gold: P({ color: 0xffc45a, metalness: 1, roughness: 0.32, roughnessMap: wear, envMapIntensity: 1.8 }),   // boosted: a dark studio turns plain gold brown
+    steel: P({ color: 0xe1e5ec, metalness: 1, roughness: 0.3, roughnessMap: wear }),
+    tin: P({ color: 0xc4c9d0, metalness: 1, roughness: 0.42, roughnessMap: wear }),
+    graphite: P({ color: 0x252932, metalness: 0.55, roughness: 0.34, roughnessMap: wear, clearcoat: 0.9, clearcoatRoughness: 0.08 }),
     lens: P({ color: 0x07080c, metalness: 0.3, roughness: 0.05, clearcoat: 1 }),
-    cap: P({ color: 0x1f56e0, roughness: 0.22, clearcoat: 1 }),
-    quartz: glassy(0xf2f5ff, 0.42, { iridescence: 0.6, iridescenceIOR: 1.3 }),
-    coat: glassy(0xffffff, 0.2, { iridescence: 1, iridescenceIOR: 1.6, side: THREE.FrontSide }),
-    seal: glassy(0x203448, 0.85, { side: THREE.FrontSide }),
-    plastic: glassy(0xd2efff, 0.3),
-    water: glassy(0x47b8f0, 0.5, { side: THREE.FrontSide }),
-    bubble: glassy(0xffffff, 0.5, { side: THREE.FrontSide }),
-    sheen: glassy(0xffffff, 0.06, { side: THREE.FrontSide }),
+    cap: P({ color: 0x1f56e0, roughness: 0.3, roughnessMap: wear, clearcoat: 0.6 }),
+    seal: P({ color: 0x1a2a3a, roughness: 0.1, clearcoat: 1 }),
+    ivory: P({ color: 0xf1ece0, roughness: 0.3, roughnessMap: wear, clearcoat: 0.5, clearcoatRoughness: 0.2 }),
+    ebony: P({ color: 0x0c0c0e, roughness: 0.26, roughnessMap: wear, clearcoat: 0.8, clearcoatRoughness: 0.12 }),
+    maple: P({ color: 0xd8c39a, roughness: 0.36, roughnessMap: wear, clearcoat: 0.6, clearcoatRoughness: 0.15 }),
+    walnut: P({ color: 0x3a2a20, roughness: 0.36, roughnessMap: wear, clearcoat: 0.6, clearcoatRoughness: 0.15 }),
+    quartz: glass({ color: 0xf4f7ff, ior: 1.54, thickness: 0.06, iridescence: 0.5, iridescenceIOR: 1.3 }),
+    plastic: glass({ color: 0xdff1ff, thickness: 0.03, roughness: 0.07, side: THREE.DoubleSide }),
+    water: glass({ color: 0xcdeaff, ior: 1.33, thickness: 1.1, roughness: 0, attenuationColor: new THREE.Color(0x3aa6e8), attenuationDistance: 1.8 }),
+    coat: film(0xffffff, 0.2, { iridescence: 1, iridescenceIOR: 1.6 }),
+    bubble: film(0xffffff, 0.55),
+    sheen: film(0xffffff, 0.06),
   };
   const A = {};   // parts that move after they are built
   const mk = (geo, mat, parent, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
   const V2 = (x, y) => new THREE.Vector2(x, y);
   const canvasTex = c => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t; };
+  const lathe = (pts, n = 200) => new THREE.LatheGeometry(new THREE.SplineCurve(pts.map(([x, y]) => V2(x, y))).getPoints(n), 96);
 
   function roundRect(w, h, r) {
     const s = new THREE.Shape(), x0 = -w / 2, y0 = -h / 2, x1 = w / 2, y1 = h / 2;
@@ -778,10 +850,10 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
     x.fillStyle = bg; x.fillRect(0, 0, W, H);
     x.fillStyle = '#04050a'; x.beginPath(); x.roundRect(W / 2 - 70, 24, 140, 36, 18); x.fill();
     text('15:30', '500 26px "JetBrains Mono", monospace', '#f5f6fa', 48, 54);
-    text('StockSense', '800 56px Archivo, sans-serif', '#f5f6fa', 48, 168);
+    text('StockSense', '700 56px Archivo, sans-serif', '#f5f6fa', 48, 168);
     text('NAIVE RULE · 2016–2026', '400 24px "JetBrains Mono", monospace', '#8a93ad', 48, 212);
     const r = 100 * Math.pow(0.037, k) - 100;
-    text(`${r < -0.05 ? '−' : ''}${Math.abs(r).toFixed(1)}%`, '900 132px Archivo, sans-serif', '#ff6159', 40, 370);
+    text(`${r < -0.05 ? '−' : ''}${Math.abs(r).toFixed(1)}%`, '700 132px Archivo, sans-serif', '#ff6159', 40, 370);
     text(`${Math.round(3572 * k).toLocaleString('en-US')} trades`, '400 26px "JetBrains Mono", monospace', '#c9cfdf', 48, 428);
     text('win 42.0% · PF 0.85', '400 26px "JetBrains Mono", monospace', '#c9cfdf', 48, 468);
     const top = 530, bot = 930, L = 48, R = W - 48, upto = Math.max(1, Math.round(k * 90));
@@ -813,7 +885,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
     drawScreen(c, 1);
     const tex = canvasTex(c);
     A.scr = { c, tex, drawnFor: 0 };
-    document.fonts.load('900 100px Archivo').then(() => document.fonts.ready).then(() => { drawScreen(c, 1); tex.needsUpdate = true; });
+    document.fonts.load('700 100px Archivo').then(() => document.fonts.ready).then(() => { drawScreen(c, 1); tex.needsUpdate = true; });
     mk(screenGeo(W - 0.1, H - 0.1, 0.12), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }), g, 0, 0, D / 2 + 0.002);
     mk(screenGeo(W - 0.1, H - 0.1, 0.12), M.sheen, g, 0, 0, D / 2 + 0.004);
     mk(new RoundedBoxGeometry(0.03, 0.34, 0.05, 2, 0.012), M.steel, g, W / 2 + 0.012, 0.6, 0);
@@ -824,30 +896,24 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
       mk(new THREE.CylinderGeometry(0.085, 0.085, 0.03, 40).rotateX(Math.PI / 2), M.steel, isl, lx, ly, -0.03);
       mk(new THREE.CylinderGeometry(0.065, 0.065, 0.032, 40).rotateX(Math.PI / 2), M.lens, isl, lx, ly, -0.033);
     });
-    mk(new THREE.SphereGeometry(0.03, 16, 12), M.clayGold, isl, 0.1, -0.1, -0.03);
     return g;
   }
 
-  function bubbleShape(w, h, r) {
-    const s = new THREE.Shape(), x0 = -w / 2, x1 = w / 2, y0 = -h / 2, y1 = h / 2;
-    s.moveTo(x0 + r, y0); s.lineTo(x0 + w * 0.3, y0); s.lineTo(x0 + w * 0.17, y0 - 0.3); s.lineTo(x0 + w * 0.46, y0);
-    s.lineTo(x1 - r, y0); s.quadraticCurveTo(x1, y0, x1, y0 + r);
-    s.lineTo(x1, y1 - r); s.quadraticCurveTo(x1, y1, x1 - r, y1);
-    s.lineTo(x0 + r, y1); s.quadraticCurveTo(x0, y1, x0, y1 - r);
-    s.lineTo(x0, y0 + r); s.quadraticCurveTo(x0, y0, x0 + r, y0);
-    return s;
+  // Kontra is an argument, so: two chess kings facing off on a corner of a board
+  function king(mat) {
+    const g = new THREE.Group();
+    mk(lathe([[0.001, 0], [0.52, 0], [0.56, 0.05], [0.56, 0.14], [0.47, 0.21], [0.5, 0.29], [0.44, 0.38], [0.3, 0.5], [0.22, 0.8], [0.18, 1.2], [0.17, 1.45], [0.31, 1.52], [0.3, 1.58], [0.18, 1.64], [0.2, 1.72], [0.3, 1.95], [0.33, 2.02], [0.29, 2.07], [0.18, 2.11], [0.001, 2.13]]), mat, g);
+    mk(new THREE.SphereGeometry(0.065, 24, 16), mat, g, 0, 2.16, 0);
+    mk(new RoundedBoxGeometry(0.075, 0.32, 0.075, 2, 0.015), mat, g, 0, 2.34, 0);
+    mk(new RoundedBoxGeometry(0.24, 0.075, 0.075, 2, 0.015), mat, g, 0, 2.38, 0);
+    return g;
   }
-  function bubbles() {
-    const g = new THREE.Group(), opt = { depth: 0.12, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.1, bevelSegments: 10, curveSegments: 48 };
-    const a = mk(new THREE.ExtrudeGeometry(bubbleShape(1.55, 1.0, 0.4), opt).translate(0, 0, -0.06), M.clay, g, -0.32, 0.45, 0.15);
-    a.rotation.z = 0.05;
-    A.dots = [-0.34, 0, 0.34].map(x => { const d = mk(new THREE.SphereGeometry(0.085, 32, 16), M.ink, a, x, 0.02, 0.16); d.scale.z = 0.45; return d; });
-    // the reply, mirrored, with an exclamation mark on the side facing us
-    const b = mk(new THREE.ExtrudeGeometry(bubbleShape(1.3, 0.88, 0.36), opt).translate(0, 0, -0.06), M.clayGold, g, 0.45, -0.58, -0.25);
-    b.rotation.set(0, Math.PI, -0.06);
-    mk(new THREE.CapsuleGeometry(0.055, 0.26, 8, 16), M.ink, b, 0, 0.09, -0.16);
-    mk(new THREE.SphereGeometry(0.065, 24, 16), M.ink, b, 0, -0.22, -0.16);
-    A.reply = b;
+  function chess() {
+    const g = new THREE.Group();
+    mk(new RoundedBoxGeometry(2.86, 0.1, 2.86, 4, 0.03), M.ebony, g, 0, -0.1, 0);
+    [[-1, -1, M.maple], [1, -1, M.walnut], [-1, 1, M.walnut], [1, 1, M.maple]].forEach(([x, z, m]) => mk(new RoundedBoxGeometry(1.3, 0.1, 1.3, 2, 0.012), m, g, x * 0.66, -0.02, z * 0.66));
+    A.white = king(M.ivory); A.white.position.set(-0.66, 0.03, 0.66); g.add(A.white);
+    const black = king(M.ebony); black.position.set(0.66, 0.03, -0.66); g.add(black);
     return g;
   }
 
@@ -859,50 +925,59 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
     water.push(V2(0.001, 0.29));
     A.water = mk(new THREE.LatheGeometry(water, 96), M.water, g);
     A.water.renderOrder = 2;
-    const cap = new THREE.SplineCurve([V2(0.001, 0.93), V2(0.2, 0.93), V2(0.228, 0.95), V2(0.234, 1.0), V2(0.234, 1.08), V2(0.222, 1.12), V2(0.18, 1.135), V2(0.001, 1.135)]).getPoints(60);
-    mk(new THREE.LatheGeometry(cap, 72), M.cap, g);
+    mk(lathe([[0.001, 0.93], [0.2, 0.93], [0.228, 0.95], [0.234, 1.0], [0.234, 1.08], [0.222, 1.12], [0.18, 1.135], [0.001, 1.135]], 60), M.cap, g);
     // paper label band between the two ridges, printed twice so it reads from both sides
     const lc = document.createElement('canvas'); lc.width = 1024; lc.height = 180;
     const lx = lc.getContext('2d');
     const paint = () => {
       lx.fillStyle = '#f4f6fb'; lx.fillRect(0, 0, 1024, 180);
       [0, 512].forEach(o => {
-        lx.fillStyle = '#1a3fe0'; lx.font = '800 64px Archivo, sans-serif'; lx.fillText('DEPOT AIR', o + 60, 92);
+        lx.fillStyle = '#1a3fe0'; lx.font = '700 64px Archivo, sans-serif'; lx.fillText('DEPOT AIR', o + 60, 92);
         lx.fillStyle = '#5c6580'; lx.font = '400 28px "JetBrains Mono", monospace'; lx.fillText('isi ulang · 19 L', o + 64, 140);
       });
     };
     paint();
     const lt = canvasTex(lc);
     document.fonts.ready.then(() => { paint(); lt.needsUpdate = true; });
-    mk(new THREE.CylinderGeometry(0.637, 0.637, 0.3, 96, 1, true), P({ map: lt, roughness: 0.6, side: THREE.DoubleSide }), g, 0, -0.22, 0).renderOrder = 4;
+    mk(new THREE.CylinderGeometry(0.637, 0.637, 0.3, 96, 1, true), P({ map: lt, roughness: 0.7, side: THREE.DoubleSide }), g, 0, -0.22, 0).renderOrder = 4;
     A.gb = Array.from({ length: 18 }, () => {
       const b = mk(new THREE.SphereGeometry(0.012 + Math.random() * 0.02, 12, 8), M.bubble, g, (Math.random() - 0.5) * 0.7, -0.9 + Math.random() * 1.1, (Math.random() - 0.5) * 0.7);
-      b.userData.v = 0.15 + Math.random() * 0.25; b.renderOrder = 2;
+      b.userData.v = 0.15 + Math.random() * 0.25; b.renderOrder = 5;
       return b;
     });
     return g;
   }
 
-  // candles have unit height and get stretched, so the trading demo can redraw them
-  const CY = v => (v - 0.6) * 2.4;
-  function layoutCandles() {
-    A.candles.forEach((cd, i) => {
-      const o = A.cur[i], c = A.cur[i + 1], top = Math.max(o, c), bot = Math.min(o, c);
-      const hi = CY(top) + 0.12 + (i % 3) * 0.05, lo = CY(bot) - 0.12 - (i % 2) * 0.06;
-      cd.b.scale.y = Math.max(CY(top) - CY(bot), 0.08); cd.b.position.y = (CY(top) + CY(bot)) / 2;
-      cd.w.scale.y = (hi - lo) / 1.036; cd.w.position.y = (hi + lo) / 2;
-      cd.b.material = cd.w.material = c >= o ? M.clayGold : M.clay;
-    });
+  // Trading research asks one thing: does the idea beat a coin flip? So: the coin, stamped with the two outcomes
+  function coinFace(top, big, bottom) {
+    const c = document.createElement('canvas'); c.width = c.height = 512;
+    const x = c.getContext('2d');
+    const paint = () => {
+      x.fillStyle = '#6a6a6a'; x.fillRect(0, 0, 512, 512);
+      x.strokeStyle = '#f0f0f0'; x.lineWidth = 26; x.beginPath(); x.arc(256, 256, 238, 0, Math.PI * 2); x.stroke();   // raised rim
+      x.fillStyle = '#d8d8d8';
+      for (let i = 0; i < 72; i++) { const a = i / 72 * Math.PI * 2; x.beginPath(); x.arc(256 + Math.cos(a) * 208, 256 + Math.sin(a) * 208, 4, 0, Math.PI * 2); x.fill(); }   // beading
+      x.fillStyle = '#f4f4f4'; x.textAlign = 'center';
+      x.font = '700 170px Archivo, sans-serif'; x.fillText(big, 256, 312);
+      x.font = '600 34px Archivo, sans-serif';
+      if ('letterSpacing' in x) x.letterSpacing = '8px';
+      x.fillText(top, 256, 132); x.fillText(bottom, 256, 414);
+    };
+    paint();
+    const t = new THREE.CanvasTexture(c);
+    document.fonts.load('700 100px Archivo').then(() => { paint(); t.needsUpdate = true; });
+    return t;
   }
-  function candles() {
-    const g = new THREE.Group(), body = new RoundedBoxGeometry(0.16, 1, 0.16, 4, 0.03), wick = new THREE.CapsuleGeometry(0.018, 1, 4, 12);
-    A.cur = [0.3, 0.42, 0.56, 0.48, 0.7, 0.6, 0.78, 0.69, 0.9, 0.82];   // first value is the first open
-    A.tgt = A.cur.slice();
-    A.candles = A.cur.slice(1).map((_, i) => ({ b: mk(body, M.clay, g, (i - 4) * 0.24, 0, 0), w: mk(wick, M.clay, g, (i - 4) * 0.24, 0, 0) }));
-    layoutCandles();
-    mk(new RoundedBoxGeometry(2.4, 0.08, 0.7, 4, 0.035), M.graphite, g, 0, CY(0.3) - 0.24, 0);
-    // the random-walk baseline every strategy is measured against
-    mk(new THREE.CapsuleGeometry(0.012, 2.3, 4, 12).rotateZ(Math.PI / 2), M.gold, g, 0, CY(0.6), -0.14);
+  function coin() {
+    const g = new THREE.Group(), T = 0.07;
+    const metal = (bump, extra = {}) => P({ color: 0xffd27a, metalness: 1, roughness: 0.34, roughnessMap: wear, envMapIntensity: 2, bumpMap: bump, bumpScale: 3, ...extra });
+    const rc = document.createElement('canvas'); rc.width = 8; rc.height = 2;
+    const rx = rc.getContext('2d'); rx.fillStyle = '#404040'; rx.fillRect(0, 0, 8, 2); rx.fillStyle = '#f0f0f0'; rx.fillRect(0, 0, 4, 2);
+    const reed = new THREE.CanvasTexture(rc); reed.wrapS = THREE.RepeatWrapping; reed.repeat.set(140, 1);
+    mk(new THREE.CylinderGeometry(1, 1, T * 2, 160, 1, true).rotateX(Math.PI / 2), metal(reed), g);   // reeded edge
+    mk(new THREE.CircleGeometry(1, 160), metal(coinFace('WIN', '+2R', '1 IN 3')), g, 0, 0, T);
+    mk(new THREE.CircleGeometry(1, 160).rotateY(Math.PI), metal(coinFace('LOSS', '−1R', '2 IN 3')), g, 0, 0, -T);
+    A.coin = g; A.face = 0; A.prevFace = 0;
     return g;
   }
 
@@ -915,21 +990,22 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
   }
 
   const rig = new THREE.Group(); scene.add(rig);
-  const objs = [fit(crystal(), 2.6), fit(phone(), 2.6), fit(bubbles(), 2.3), fit(galon(), 2.5), fit(candles(), 2.4)];
+  const objs = [fit(crystal(), 2.6), fit(phone(), 2.6), fit(chess(), 2.4), fit(galon(), 2.5), fit(coin(), 1.9)];
   vapour(objs[0].children[0]);
   objs.forEach(o => { o.visible = false; rig.add(o); });
-  // real soft shadows on an invisible floor; thin clear plastic and glass don't cast, the water does
-  objs.forEach(o => o.traverse(n => { if (n.isMesh) n.castShadow = !n.material.transparent; }));
+  // real soft shadows on an invisible floor; glass and thin plastic don't cast, the water does
+  objs.forEach(o => o.traverse(n => { if (n.isMesh) n.castShadow = !(n.material.transparent || n.material.transmission > 0); }));
   A.water.castShadow = true;
   rig.add(key, key.target);
   const floor = mk(new THREE.PlaneGeometry(14, 14), new THREE.ShadowMaterial({ opacity: 0.55 }), rig, 0, -1.42, 0);
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
+  const KEYS = ['qcm', 'stocksense', 'kontra', 'depot', 'trading'], vis = objs.map(() => 0), N = objs.length;
 
   // a thin light trail orbiting the current object, with a brighter streak running along it
   const glow = o => new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
   const orbit = new THREE.Group(); orbit.rotation.set(1.22, 0, -0.28); rig.add(orbit);
-  mk(new THREE.TorusGeometry(1.85, 0.005, 6, 240), glow(0.22), orbit);
-  const streak = mk(new THREE.TorusGeometry(1.85, 0.011, 6, 80, 1.1), glow(0.9), orbit);
+  mk(new THREE.TorusGeometry(1.85, 0.005, 6, 240), glow(0.14), orbit);
+  const streak = mk(new THREE.TorusGeometry(1.85, 0.009, 6, 80, 1.1), glow(0.6), orbit);
 
   // fine dust drifting through the studio light
   const DN = 260, dpos = new Float32Array(DN * 3), dgeo = new THREE.BufferGeometry();
@@ -965,29 +1041,26 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
     g.computeVertexNormals();
     ribbon.geometry.dispose(); ribbon.geometry = g; ribbon.visible = true;
   }
-  const KEYS = ['qcm', 'stocksense', 'kontra', 'depot', 'trading'], vis = objs.map(() => 0), N = objs.length;
 
-  // soft contact shadow
-  const shc = document.createElement('canvas'); shc.width = shc.height = 256;
-  const shx = shc.getContext('2d'), grad = shx.createRadialGradient(128, 128, 0, 128, 128, 128);
-  grad.addColorStop(0, 'rgba(0,0,0,.5)'); grad.addColorStop(1, 'rgba(0,0,0,0)');
-  shx.fillStyle = grad; shx.fillRect(0, 0, 256, 256);
-  const shadow = mk(new THREE.PlaneGeometry(2.8, 2.8), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(shc), transparent: true, depthWrite: false, toneMapped: false }), rig, 0, -1.5, 0);
-  shadow.rotation.x = -Math.PI / 2;
-
-  const cam = new THREE.Vector3();
+  const cam = new THREE.Vector3(), TAN = Math.tan(Math.PI / 12);
+  let asp = 1, narrow = false;
   function fitCam() {
-    const w = host.clientWidth, h = host.clientHeight, asp = w / h, narrow = asp < 0.8;
+    const w = host.clientWidth, h = host.clientHeight;
+    asp = w / h; narrow = asp < 0.8;
     renderer.setSize(w, h, false);
-    const d = narrow ? Math.max(7.2, 5.7 / asp) : 7.2, visH = 2 * d * Math.tan(Math.PI / 12);
+    const d = narrow ? Math.max(7.2, 5.7 / asp) : 7.2, visH = 2 * d * TAN;
     camera.aspect = asp; camera.updateProjectionMatrix();
     cam.set(0, 0.5, d);
     rig.position.set(narrow ? 0 : visH * asp * 0.17, narrow ? visH * 0.17 : 0.12, 0);
+    backdrop.scale.set(2 * 30 * TAN * asp, 2 * 30 * TAN, 1);
+    const k = Math.min(DPR, 2048 / w);
+    bc.width = Math.round(w * k); bc.height = Math.round(h * k);
+    bdDirty = true;
   }
   new ResizeObserver(fitCam).observe(host);
   fitCam();
 
-  // drag to spin, tap to flick, and a slight lean toward the cursor
+  // drag to spin, tap to nudge, and a slight lean toward the cursor
   let dragX = 0, tilt = 0, vel = 0, last = null, moved = 0;
   const lean = { x: 0, y: 0, tx: 0, ty: 0 };
   host.addEventListener('pointerdown', e => { last = e; moved = 0; host.setPointerCapture(e.pointerId); });
@@ -999,46 +1072,58 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
     tilt = THREE.MathUtils.clamp(tilt + dy * 0.006, -0.6, 0.6);
     last = e;
   });
-  host.addEventListener('pointerup', () => { if (moved < 6) vel += 0.35; last = null; });
+  host.addEventListener('pointerup', () => { if (moved < 6) vel += 0.2; last = null; });
   host.addEventListener('pointercancel', () => { last = null; });
-  window.addEventListener('pointermove', e => { lean.tx = (e.clientX / innerWidth - 0.5) * 0.5; lean.ty = (e.clientY / innerHeight - 0.5) * 0.3; });
+  window.addEventListener('pointermove', e => { lean.tx = (e.clientX / innerWidth - 0.5) * 0.4; lean.ty = (e.clientY / innerHeight - 0.5) * 0.24; });
 
   let visible = true;
   new IntersectionObserver(([en]) => { visible = en.isIntersecting; }).observe(host);
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const clock = new THREE.Clock();
-  const back = v => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(v - 1, 3) + c1 * Math.pow(v - 1, 2); };   // easeOutBack: a small overshoot
+  const clock = new THREE.Clock(), smooth = v => v * v * (3 - 2 * v), out3 = v => 1 - Math.pow(1 - Math.min(1, v), 3);
   let prevActive = -1, push = 0, prevT = 0;
 
   renderer.setAnimationLoop(() => {
     if (!visible) return;
     const t = clock.getElapsedTime(), dt = Math.min(0.05, t - prevT), now = performance.now(), m = reduce ? 0 : 1;
-    const k = reduce ? 1 : 1 - Math.exp(-dt * 4.2);   // time-based, so 60 Hz and 144 Hz screens animate the same
+    const k = reduce ? 1 : 1 - Math.exp(-dt * 3.4);   // time-based, so 60 Hz and 144 Hz screens animate the same
     prevT = t;
     const active = Math.min(N - 1, Math.max(0, Math.round(S.p) - 1));
     if (active !== prevActive) { if (prevActive >= 0) push = m; prevActive = active; }
     push *= 0.95;
     if (!last) { vel *= 0.95; dragX += vel; tilt *= 0.96; }
-    lean.x += (lean.tx - lean.x) * 0.06; lean.y += (lean.ty - lean.y) * 0.06;
+    lean.x += (lean.tx - lean.x) * 0.05; lean.y += (lean.ty - lean.y) * 0.05;
 
-    // camera drifts with scroll and pushes in briefly after each switch
-    camera.position.set(cam.x + m * (S.p % 1 - 0.5) * 0.5, cam.y, cam.z * (1 + 0.1 * push));
+    // backdrop: cross-fade the ghost number when the project changes
+    const wi = Math.round(S.p);
+    if (wi !== wCur) { wPrev = wCur; wCur = wi; wT = reduce ? 1 : 0; bdDirty = true; }
+    if (wT < 1) { wT = Math.min(1, wT + dt / 0.6); bdDirty = true; }
+    if (bdDirty) { bdDirty = false; drawBackdrop(); }
+
+    // oscillator trace behind the objects; it loses cycles as vapour loads the crystal
+    const hH = 26 * TAN, hW = hH * asp, amp = Math.min(host.clientHeight * 0.06, 46) / host.clientHeight * 2 * hH;
+    const cyc = 7.5 * (1 - S.mass / 3000 * 0.45), ph = m * now / 700, y0 = (0.5 - (narrow ? 0.34 : 0.5)) * 2 * hH;
+    for (let i = 0; i < SN; i++) { const u = i / (SN - 1); spos[i * 3] = (u * 2 - 1) * hW; spos[i * 3 + 1] = y0 + Math.sin(u * cyc * Math.PI * 2 - ph) * amp; }
+    sgeo.attributes.position.needsUpdate = true;
+
+    // camera: a slow drift with scroll and a gentle push-in after each switch, like a product film
+    camera.position.set(cam.x + m * (S.p % 1 - 0.5) * 0.4, cam.y, cam.z * (1 + 0.06 * push));
     camera.lookAt(0, 0, 0);
 
-    const bob = m * Math.sin(t * 1.2) * 0.07;
+    const bob = m * Math.sin(t * 0.9) * 0.03;
     let shown = 0;
     objs.forEach((o, i) => {
       vis[i] += ((i === active ? 1 : 0) - vis[i]) * k;
       const v = Math.min(1, Math.max(0, vis[i]));
       o.visible = v > 0.003;
       if (!o.visible) return;
-      const e = i === active ? back(v) : v * v, age = (now - (S.kick[KEYS[i]] || -1e9)) / 1000;
+      const e = smooth(v), age = (now - (S.kick[KEYS[i]] || -1e9)) / 1000;
       const kick = m * (age < 1.5 ? Math.sin(age * 9) * Math.exp(-age * 3.5) : 0);
-      shown = Math.max(shown, Math.min(1, e));
-      o.scale.setScalar(Math.max(0.001, e) * (1 + kick * 0.06));
-      o.position.y = (1 - v) * -0.9 + bob + kick * 0.18;
-      o.rotation.y = -0.35 + m * Math.sin(t * 0.55 + i) * 0.35 + (1 - v) * (i < active ? -2.6 : 2.6) + dragX + lean.x;
-      o.rotation.x = 0.06 + tilt + lean.y + m * Math.sin(t * 0.8 + i) * 0.04;
+      shown = Math.max(shown, e);
+      o.scale.setScalar(Math.max(0.001, e));
+      o.position.y = (1 - e) * -0.5 + bob + kick * 0.08;
+      // turntable: a slow sweep left and right rather than a bounce
+      o.rotation.y = -0.35 + m * Math.sin(t * 0.4 + i) * 0.32 + (1 - e) * (i < active ? -1.6 : 1.6) + dragX + lean.x;
+      o.rotation.x = 0.06 + tilt + lean.y;
     });
 
     // per-object life
@@ -1060,32 +1145,30 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
       drawScreen(A.scr.c, kk); A.scr.tex.needsUpdate = true;
       if (kk >= 1) A.scr.drawnFor = S.replay;
     }
-    if (objs[2].visible) {
-      A.dots.forEach((d, j) => { d.position.y = 0.02 + m * Math.max(0, Math.sin(t * 6 - j * 0.7)) * 0.07; });
+    if (objs[2].visible) {   // an attack rocks the white king on its base
       const age = (now - (S.kick.kontra || -1e9)) / 1000;
-      A.reply.scale.setScalar(1 + m * (age < 1.2 ? Math.sin(age * 12) * Math.exp(-age * 4) * 0.18 : 0));
+      A.white.rotation.z = m * (age < 2 ? Math.sin(age * 11) * Math.exp(-age * 2.4) * 0.22 : 0);
     }
     if (objs[3].visible) {
       const boost = 1 + 4 * Math.max(0, 1 - (now - (S.kick.depot || -1e9)) / 1500);
       A.gb.forEach(b => { b.position.y += m * b.userData.v * dt * boost; if (b.position.y > 0.26) b.position.y = -0.92; });
       A.water.rotation.z = m * Math.sin(t * 13) * 0.025 * (boost - 1) / 4;
     }
-    if (S.walk) { A.tgt = S.walk; S.walk = null; }
-    let moving = false;
-    A.cur.forEach((c, i) => { const d = A.tgt[i] - c; if (Math.abs(d) > 0.001) { A.cur[i] += d * 0.12; moving = true; } });
-    if (moving) layoutCandles();
+    if (objs[4].visible) {   // the simulator tosses the coin; it lands on the side the run ended on
+      if (S.flip !== undefined && S.flipAt !== A.flipAt) { A.flipAt = S.flipAt; A.prevFace = A.face; A.face = S.flip; }
+      const age = (now - (A.flipAt || -1e9)) / 1000, e = out3(age / 1.8), turns = A.face === A.prevFace ? 6 : 5;
+      A.coin.rotation.x = A.face * Math.PI + m * (1 - e) * turns * Math.PI;
+      A.coin.position.y = m * Math.sin(Math.PI * Math.min(1, age / 1.8)) * 0.45;
+    }
 
     orbit.scale.setScalar(Math.max(0.001, shown));
-    streak.rotation.z -= m * dt * 1.1;
+    streak.rotation.z -= m * dt * 0.8;
     if (m) {
       for (let i = 0; i < DN; i++) { const j = i * 3 + 1; dpos[j] += dt * 0.06 * (1 + (i % 5) * 0.2); if (dpos[j] > 2.5) dpos[j] = -2.5; }
       dgeo.attributes.position.needsUpdate = true;
       camera.updateMatrixWorld();
       updateRibbon(now);
     }
-
-    shadow.material.opacity = shown * 0.5 * (1 - bob * 2);
-    shadow.scale.setScalar(1 - bob * 0.8);
     renderer.render(scene, camera);
   });
 })();
