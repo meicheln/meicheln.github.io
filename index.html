@@ -527,8 +527,32 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
   words.forEach(w => { const s = w.querySelector('span'); s.innerHTML = [...s.textContent].map((ch, i) => `<i style="--d:${i * 45}ms">${ch === ' ' ? '&nbsp;' : ch}</i>`).join(''); });
 
   // steps can grow taller than the screen (demos on phones), so progress comes from their real positions
-  const measure = () => { tops = steps.map(s => s.getBoundingClientRect().top + window.scrollY); };
-  new ResizeObserver(measure).observe(document.querySelector('.track'));
+  // text motion: each block rises in from below as it enters, then drifts up, fades and blurs as it leaves
+  const t0 = performance.now(), ease = x => x * x * (3 - 2 * x);
+  const movers = [...document.querySelectorAll('.step .col > :not(.sr), .sheet-head, .sheet-grid > div, .contact .label, .big-link, .contact .wrap > p')]
+    .map((el, n) => ({ el, y: 0, h: 0, exit: !!el.closest('.step'), boot: el.closest('#intro') ? n : -1, big: el.matches('h2, .lead, .big-link, .sheet-head') }));
+  function moveText(now) {
+    const vh = window.innerHeight, sy = window.scrollY;
+    movers.forEach(m => {
+      const top = (m.y - sy) / vh, c = top + m.h / vh / 2;
+      if (top > 1.3 || c < -0.4) return;   // far off-screen
+      let tin = Math.min(1, Math.max(0, (1.04 - top) / 0.14));   // done within the bottom 14% of the screen, so text at rest is always fully shown
+      if (m.boot >= 0) tin = Math.min(tin, Math.max(0, (now - t0 - m.boot * 140) / 800));   // first load: the intro arrives on its own
+      const tout = m.exit ? Math.min(1, Math.max(0, (0.34 - c) / 0.2)) : 0, a = ease(tin), b = ease(tout), st = m.el.style;
+      st.opacity = (a * (1 - b)).toFixed(3);
+      st.transform = `translate3d(0,${((1 - a) * (m.big ? 70 : 40) - b * 50).toFixed(1)}px,0)`;
+      st.filter = b > 0.01 ? `blur(${(b * 6).toFixed(1)}px)` : '';
+      if (m.big) st.clipPath = a < 0.999 ? `inset(0 0 ${((1 - a) * 100).toFixed(1)}% 0)` : '';   // headlines emerge from behind a line
+    });
+  }
+
+  // positions are cached without transforms (offsetTop), so the motion above never feeds back into them
+  const measure = () => {
+    tops = steps.map(s => s.getBoundingClientRect().top + window.scrollY);
+    movers.forEach(m => { let y = 0; for (let n = m.el; n; n = n.offsetParent) y += n.offsetTop; m.y = y; m.h = m.el.offsetHeight; });
+  };
+  const ro = new ResizeObserver(measure);
+  ro.observe(document.querySelector('.track')); ro.observe(document.body);
   measure();
   function progress() {
     const y = window.scrollY;
@@ -637,6 +661,7 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
     requestAnimationFrame(loop);
     const dt = Math.min(0.05, (now - prev) / 1000); prev = now;
     S.p = progress();
+    if (!reduce) moveText(now);
     const a = Math.round(S.p);
     if (a !== active) { words[active].classList.remove('on'); words[a].classList.add('on'); active = a; }
     const mid = innerHeight * 0.5;
