@@ -56,7 +56,7 @@ a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
 }
 
 /* Stage: a soft studio spotlight behind the object */
-.track { position: relative; color: var(--white); }
+.track { position: relative; color: var(--white); overflow-x: clip; }
 .stage {
   position: sticky; top: 0; height: 100svh; overflow: hidden;
   background: radial-gradient(70% 75% at 68% 46%, #1b2236 0%, #0f1320 48%, #07080d 100%);
@@ -117,6 +117,44 @@ a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
 .index span { flex-basis: 100%; color: var(--mute); font: 400 11px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .08em; }
 .index a { text-decoration: none; border-bottom: 1px solid var(--line); }
 .index a:hover { border-color: var(--white); }
+
+/* Layout variants, so no two neighbouring panels are framed the same way */
+.step.R .col { margin-left: auto; }
+.step.C .col { margin-inline: auto; max-width: 820px; text-align: center; }
+.step.C .meta { justify-content: center; }
+.step.C .cap { margin-inline: auto; max-width: 34em; }
+.step.A .col { max-width: 600px; }
+.step.C.A .col { max-width: 980px; }
+.step.A h2 { font-size: clamp(54px, 7.4vw, 124px); line-height: .9; }
+.sub { margin: 0 0 12px; font: 400 clamp(28px, 2.8vw, 40px)/1.05 var(--serif); letter-spacing: -.01em; text-wrap: balance; }
+@media (min-width: 761px) { .step.R .wrap { padding-bottom: 112px; } }   /* clear the clock */
+/* Labels pinned to points on the 3D objects */
+#tags { position: absolute; inset: 0; z-index: 4; overflow: hidden; pointer-events: none; }
+.lbl { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 8px; opacity: 0; white-space: nowrap; color: var(--white); font: 400 11px/1.3 var(--mono); text-transform: uppercase; letter-spacing: .08em; will-change: transform, opacity; }
+.lbl.flip { flex-direction: row-reverse; }
+.lbl b { width: 7px; height: 7px; border-radius: 50%; background: var(--white); box-shadow: 0 0 0 4px rgb(244 245 247 / .18); }
+.lbl i { width: 36px; height: 1px; background: rgb(244 245 247 / .55); }
+.lbl.name { display: block; padding: 6px 4px; border-bottom: 1px solid var(--line); font: 400 clamp(15px, 1.5vw, 20px)/1 var(--serif); text-transform: none; letter-spacing: 0; text-decoration: none; }
+.lbl.name:hover { border-color: var(--white); }
+
+/* Gradient accents: headlines fade from white into blue, and a blue band wipes the stage at each project change */
+.step h2, .sub, .lead, .rail h2 { background: linear-gradient(100deg, #f4f5f7 35%, #8fa6ff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; padding-bottom: .08em; }
+.rail h2 em { font-style: italic; }
+#wipe { position: absolute; inset: -10%; z-index: 4; opacity: 0; pointer-events: none; will-change: transform; }
+
+/* Timeline: a pinned dark-blue band whose cards travel sideways as the page scrolls down */
+.rail { height: 320svh; color: var(--white); background: linear-gradient(180deg, #07080d 0%, #0b1740 14%, #0f2266 55%, #0b1740 88%, #f4f5f7 100%); }
+.rail-pin { position: sticky; top: 0; height: 100svh; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr); align-content: center; gap: clamp(24px, 5vh, 48px); }
+.rail-head { width: 100%; }
+.rail h2 { margin: 10px 0 0; font: 400 clamp(44px, 6vw, 96px)/.95 var(--serif); letter-spacing: -.01em; }
+.rail-track { display: flex; gap: 24px; width: max-content; padding-inline: max(20px, calc((100vw - 1280px) / 2 + 20px)); will-change: transform; }
+.card { flex: 0 0 min(78vw, 400px); min-height: 250px; display: grid; align-content: space-between; gap: 28px; padding: 26px; border: 1px solid rgb(244 245 247 / .16); border-radius: 14px; background: linear-gradient(160deg, rgb(244 245 247 / .1), rgb(244 245 247 / .02)); }
+.card:nth-child(even) { transform: translateY(26px); }
+.card .when { color: var(--mute); font: 400 11px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .08em; }
+.card h3 { margin: 0 0 10px; font: 400 clamp(28px, 2.6vw, 38px)/1 var(--serif); }
+.card p { margin: 0; color: rgb(244 245 247 / .8); font-size: 15px; }
+.rail-bar { height: 1px; margin-top: 26px; background: var(--line); }
+.rail-bar i { display: block; height: 1px; background: var(--white); transform-origin: left; transform: scaleX(0); }
 
 /* Demos */
 .demo { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); pointer-events: auto; text-shadow: none; }
@@ -267,9 +305,12 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
       <div class="word"><span>50</span><em>test claims</em></div>
       <div class="word"><span>3 GALON</span><em>on WhatsApp</em></div>
       <div class="word"><span>469</span><em>trades checked</em></div>
+      <div class="word"><span>INDEX</span><em>five projects</em></div>
     </div>
     <canvas id="scope" aria-hidden="true"></canvas>
     <div id="gl" aria-hidden="true"></div>
+    <div id="tags"></div>
+    <div id="wipe" aria-hidden="true"></div>
     <div class="chrome">
       <div class="wrap">
         <a class="name" href="#top">Meichel</a>
@@ -280,7 +321,7 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
     </div>
   </div>
 
-  <section class="step" id="intro">
+  <section class="step L" id="intro" data-fx="up" data-w="0">
     <div class="wrap"><div class="col">
       <h1 class="sr">Meichel</h1>
       <p class="lead">Biomedical engineering student at ITERA, Lampung. I build <em>sensors</em>, market tools and the software around them, and I publish the numbers even when they come out bad.</p>
@@ -295,11 +336,16 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
     </div></div>
   </section>
 
-  <section class="step" id="qcm">
+  <section class="step R A" id="qcm" data-fx="right" data-w="1">
     <div class="wrap"><div class="col">
       <div class="meta"><span>Hardware</span><span>Jun 2026</span><span>Designed + simulated</span></div>
       <h2>QCM Cyclohexane Sensor</h2>
       <p class="cap">A 10 MHz quartz crystal with a polymer coating, kept oscillating by a Pierce circuit. Vapour that sticks to the coating adds mass, and the frequency drops by 0.2264 Hz for every ng/cm².</p>
+    </div></div>
+  </section>
+  <section class="step L" id="qcm-more" data-fx="left" data-w="1">
+    <div class="wrap"><div class="col">
+      <h3 class="sub">What the simulation found</h3>
       <ul>
         <li>My own Python solver: 10.001410 MHz, 22.8× start-up margin.</li>
         <li>It caught the crystal driven at 213 µW. R3 from 1 kΩ to 3.3 kΩ brings it to 93 µW.</li>
@@ -314,11 +360,16 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
     </div></div>
   </section>
 
-  <section class="step" id="stocksense">
+  <section class="step L A" id="stocksense" data-fx="left" data-w="2">
     <div class="wrap"><div class="col">
       <div class="meta"><span>Software</span><span>Sep 2026</span><span>Public on GitHub</span></div>
       <h2>StockSense</h2>
       <p class="cap">A self-hosted scanner for the Indonesia Stock Exchange that reports how often it is wrong. A naive entry rule lost 96.3% over 3,572 backtested trades, and the app shows that instead of hiding it.</p>
+    </div></div>
+  </section>
+  <section class="step R" id="stocksense-more" data-fx="right" data-w="2">
+    <div class="wrap"><div class="col">
+      <h3 class="sub">What the app shows</h3>
       <ul>
         <li>55 liquid IDX stocks, five separately audited ML models, foreign-flow tracking.</li>
         <li><a class="src" href="https://github.com/meicheln/stocksense" target="_blank" rel="noopener">github.com/meicheln/stocksense ↗</a></li>
@@ -333,11 +384,20 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
     </div></div>
   </section>
 
-  <section class="step" id="kontra">
+  <section class="step C A" id="kontra" data-fx="zoom" data-w="3">
     <div class="wrap"><div class="col">
       <div class="meta"><span>Web app</span><span>Aug 2026</span><span>Evaluation pending</span></div>
       <h2>Kontra</h2>
-      <p class="cap">A debate partner that attacks your argument instead of agreeing with it. It uses Claude when an API key is set and an offline template engine when it isn't. 50 test claims are written; they haven't been run against the live model yet.</p>
+      <p class="cap">A debate partner that attacks your argument instead of agreeing with it.</p>
+    </div></div>
+  </section>
+  <section class="step L" id="kontra-more" data-fx="up" data-w="3">
+    <div class="wrap"><div class="col">
+      <h3 class="sub">Argue with it</h3>
+      <ul>
+        <li>Uses Claude when an API key is set, and an offline template engine when it isn't.</li>
+        <li>50 test claims are written; they haven't been run against the live model yet.</li>
+      </ul>
       <div class="demo">
         <div class="tag">Try it · offline practice mode</div>
         <form class="row" id="argue">
@@ -350,11 +410,16 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
     </div></div>
   </section>
 
-  <section class="step" id="depot">
+  <section class="step R A" id="depot" data-fx="right" data-w="4">
     <div class="wrap"><div class="col">
       <div class="meta"><span>Small business</span><span>Oct 2026</span><span>Running</span></div>
       <h2>Depot Air WA</h2>
       <p class="cap">Customers of our refill water depot order on WhatsApp. The app reads the chat, records the order, replies, and fills a daily report in Google Sheets.</p>
+    </div></div>
+  </section>
+  <section class="step L" id="depot-more" data-fx="left" data-w="4">
+    <div class="wrap"><div class="col">
+      <h3 class="sub">Send an order</h3>
       <div class="demo">
         <div class="tag">Try it · same parser and replies as the real bot</div>
         <div class="chat" id="chat" aria-live="polite"></div>
@@ -366,12 +431,18 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
     </div></div>
   </section>
 
-  <section class="step" id="trading">
+  <section class="step C A" id="trading" data-fx="zoom" data-w="5">
     <div class="wrap"><div class="col">
       <div class="meta"><span>Research</span><span>Oct 2026</span><span>Ongoing</span></div>
       <h2>Trading Research Lab</h2>
-      <p class="cap">Before trusting an idea with money, I check whether it beats chance. 469 trades from my indicator, across 8 pair and timeframe sets, compared with a random-walk baseline.</p>
+      <p class="cap">Before trusting an idea with money, I check whether it beats a coin flip.</p>
+    </div></div>
+  </section>
+  <section class="step R" id="trading-more" data-fx="right" data-w="5">
+    <div class="wrap"><div class="col">
+      <h3 class="sub">Flip it yourself</h3>
       <ul>
+        <li>469 trades from my indicator, across 8 pair and timeframe sets, compared with a random-walk baseline.</li>
         <li>Pine Script indicators, MT5 Expert Advisors, Python backtesters, and an MCP server for live market data.</li>
       </ul>
       <div class="demo">
@@ -382,7 +453,34 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
       </div>
     </div></div>
   </section>
+
+  <section class="step C" id="lineup" data-fx="up" data-w="6">
+    <div class="wrap"><div class="col">
+      <div class="meta"><span>Index</span><span>2026</span></div>
+      <h3 class="sub">Five projects, each one measured.</h3>
+      <p class="cap">Pick a name to go back to it.</p>
+    </div></div>
+  </section>
 </div>
+
+<section class="rail" id="timeline" aria-label="Timeline">
+  <div class="rail-pin">
+    <div class="wrap rail-head">
+      <div class="label">Timeline · 2026</div>
+      <h2>One year, <em>five builds.</em></h2>
+    </div>
+    <div class="rail-track" id="rail-track">
+      <article class="card"><span class="when">Now</span><div><h3>Biomedical Engineering</h3><p>Student at Institut Teknologi Sumatera (ITERA), based in Lampung.</p></div></article>
+      <article class="card"><span class="when">Jun 2026</span><div><h3>QCM oscillator</h3><p>Drew the Pierce oscillator in EasyEDA Pro and verified it with my own Python solver.</p></div></article>
+      <article class="card"><span class="when">Aug 2026</span><div><h3>Kontra</h3><p>Built a debate opponent in React and TypeScript, with an offline fallback engine.</p></div></article>
+      <article class="card"><span class="when">Sep 2026</span><div><h3>StockSense</h3><p>Published the IDX scanner on GitHub under MIT, with its failed backtest on show.</p></div></article>
+      <article class="card"><span class="when">Oct 2026</span><div><h3>Depot Air WA</h3><p>Automated WhatsApp order taking and daily reports for our refill water depot.</p></div></article>
+      <article class="card"><span class="when">Oct 2026</span><div><h3>Trading research</h3><p>Tested 469 trades from my indicator against a random-walk baseline.</p></div></article>
+      <article class="card"><span class="when">Nov 2026</span><div><h3>This site</h3><p>Every project above, with a demo that runs the real logic in your browser.</p></div></article>
+    </div>
+    <div class="wrap"><div class="rail-bar"><i id="rail-bar"></i></div></div>
+  </div>
+</section>
 
 <div class="clock" aria-hidden="true">
   <b id="clk-main">--:--:--</b><span class="live"></span>Lampung · WIB
@@ -561,6 +659,7 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
   const scope = $('scope'), sc = scope.getContext('2d');
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const F0 = 10.001410, SENS = 0.2264;   // MHz, Hz per ng/cm² (from the oscillator simulation)
+  const wipe = $('wipe'), rail = $('timeline'), railTrack = $('rail-track'), railBar = $('rail-bar');
   let tops = [], jitter = 0, active = 0, holding = false, prev = performance.now();
 
   // pill nav: slide the white indicator under the section in view
@@ -585,7 +684,9 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
   // text motion: each block rises in from below as it enters, then drifts up, fades and blurs as it leaves
   const t0 = performance.now(), ease = x => x * x * (3 - 2 * x);
   const movers = [...document.querySelectorAll('.step .col > :not(.sr), .sheet-head, .sheet-grid > div, .contact .label, .big-link, .contact .wrap > p')]
-    .map((el, n) => ({ el, y: 0, h: 0, exit: !!el.closest('.step'), boot: el.closest('#intro') ? n : -1, big: el.matches('h2, .lead, .big-link, .sheet-head') }));
+    .map((el, n) => ({ el, y: 0, h: 0, exit: !!el.closest('.step'), boot: el.closest('#intro') ? n : -1, big: el.matches('h2, .lead, .big-link, .sheet-head'), fx: el.closest('.step')?.dataset.fx || 'up' }));
+  // each panel moves its text its own way: the [x, y] side it comes from, then the side it leaves toward; "zoom" also scales
+  const FX = { up: [0, 1, 0, -1], left: [-1, 0, -1, 0], right: [1, 0, 1, 0], zoom: [0, 0.35, 0, -0.35] };
   function moveText(now) {
     const vh = window.innerHeight, sy = window.scrollY;
     movers.forEach(m => {
@@ -595,9 +696,10 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
       if (m.boot >= 0) tin = Math.min(tin, Math.max(0, (now - (window.BOOT_END ?? t0) - 350 - m.boot * 140) / 800));   // first load: the intro arrives on its own
       const tout = m.exit ? Math.min(1, Math.max(0, (0.34 - c) / 0.2)) : 0, a = ease(tin), b = ease(tout), st = m.el.style;
       st.opacity = (a * (1 - b)).toFixed(3);
-      st.transform = `translate3d(0,${((1 - a) * (m.big ? 70 : 40) - b * 50).toFixed(1)}px,0)`;
+      const [ix, iy, ox, oy] = FX[m.fx], D = m.big ? 90 : 56, zoom = m.fx === 'zoom' ? 0.86 + 0.14 * a + 0.12 * b : 1;
+      st.transform = `translate3d(${((1 - a) * ix * D * 1.6 + b * ox * 90).toFixed(1)}px,${((1 - a) * iy * D + b * oy * 60).toFixed(1)}px,0) scale(${zoom.toFixed(3)})`;
       st.filter = b > 0.01 ? `blur(${(b * 6).toFixed(1)}px)` : '';
-      if (m.big) st.clipPath = a < 0.999 ? `inset(0 0 ${((1 - a) * 100).toFixed(1)}% 0)` : '';   // headlines emerge from behind a line
+      if (m.big && m.fx === 'up') st.clipPath = a < 0.999 ? `inset(0 0 ${((1 - a) * 100).toFixed(1)}% 0)` : '';   // headlines emerge from behind a line
     });
   }
 
@@ -717,7 +819,19 @@ footer { margin-top: clamp(64px, 9vw, 112px); padding-top: 16px; border-top: 1px
     const dt = Math.min(0.05, (now - prev) / 1000); prev = now;
     S.p = progress();
     if (!reduce) moveText(now);
-    const a = Math.round(S.p);
+    // a dark-blue gradient band crosses the stage at each project change, from a different side every time
+    const bi = Math.round((S.p - 2.5) / 2), bu = S.p - (2 + bi * 2);   // nearest boundary (2.5, 4.5 … 10.5) and progress 0…1 across it
+    if (bi >= 0 && bi < 5 && bu > 0 && bu < 1) {
+      const [ang, dx, dy] = [[90, 1, 0], [0, 0, -1], [270, -1, 0], [180, 0, 1], [45, 1, -1]][bi], k = (bu * 2 - 1) * 110;
+      wipe.style.opacity = 1;
+      wipe.style.background = `linear-gradient(${ang}deg, rgb(11 23 64 / 0) 20%, rgb(15 34 102 / .85) 42%, rgb(47 79 224 / .9) 50%, rgb(15 34 102 / .85) 58%, rgb(11 23 64 / 0) 80%)`;
+      wipe.style.transform = `translate3d(${dx * k}%,${dy * k}%,0)`;
+    } else wipe.style.opacity = 0;
+    // timeline: vertical scroll drives the cards sideways
+    const rr = rail.getBoundingClientRect(), ru = Math.min(1, Math.max(0, -rr.top / (rr.height - window.innerHeight)));
+    railTrack.style.transform = `translate3d(${(-ru * Math.max(0, railTrack.scrollWidth - window.innerWidth)).toFixed(1)}px,0,0)`;
+    railBar.style.transform = `scaleX(${ru.toFixed(3)})`;
+    const a = S.word = +steps[Math.round(S.p)].dataset.w;
     if (a !== active) { words[active].classList.remove('on'); words[a].classList.add('on'); active = a; }
     const mid = innerHeight * 0.5;
     setSec($('contact').getBoundingClientRect().top < mid ? 'contact' : $('about').getBoundingClientRect().top < mid ? 'about' : S.p >= 0.5 ? 'work' : null);
@@ -795,7 +909,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
   key.shadow.radius = 10; key.shadow.blurSamples = 20; key.shadow.bias = -0.0004;
-  Object.assign(key.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3, near: 1, far: 15 });
+  Object.assign(key.shadow.camera, { left: -6.5, right: 6.5, top: 6.5, bottom: -6.5, near: 1, far: 18 });
   const rim = new THREE.DirectionalLight(0xbfd0ff, 1.4); rim.position.set(-4, 2.5, -4); scene.add(rim);
 
   // backdrop: studio spotlight + the ghost number, painted to a texture so it shows through glass
@@ -808,10 +922,6 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
   function drawBackdrop() {
     const W = bc.width, H = bc.height, px = W / host.clientWidth, narrow = W / H < 0.8;
     bx.fillStyle = '#07080d'; bx.fillRect(0, 0, W, H);
-    bx.save(); bx.translate(W * (narrow ? 0.5 : 0.68), H * (narrow ? 0.36 : 0.46)); bx.scale(W * (narrow ? 0.9 : 0.7), H * (narrow ? 0.5 : 0.75));
-    const g = bx.createRadialGradient(0, 0, 0, 0, 0, 1);
-    g.addColorStop(0, '#1b2236'); g.addColorStop(0.48, '#0f1320'); g.addColorStop(1, '#07080d');
-    bx.fillStyle = g; bx.beginPath(); bx.arc(0, 0, 1, 0, Math.PI * 2); bx.fill(); bx.restore();
     const vw = host.clientWidth, fs = (narrow ? vw * 0.24 : Math.min(360, Math.max(100, vw * 0.21))) * px, us = Math.min(36, Math.max(22, vw * 0.026)) * px;
     const base = H * (narrow ? 0.34 : 0.5) + fs * 0.26, e = wT * wT * (3 - 2 * wT);
     bx.textAlign = 'center';
@@ -1095,15 +1205,14 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 
   // the cursor leaves a glossy white ribbon in the scene, lit by the same studio as the objects
   const ribbon = new THREE.Mesh(new THREE.BufferGeometry(), P({ color: 0xf4f5f7, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.05 }));
-  ribbon.castShadow = true; ribbon.frustumCulled = false; scene.add(ribbon);
-  const trail = [], ptr = new THREE.Vector2(), tip = new THREE.Vector3(), hit = new THREE.Vector3(), ray = new THREE.Vector3();
+  ribbon.frustumCulled = false; camera.add(ribbon);
+  const trail = [], ptr = new THREE.Vector2(), tip = new THREE.Vector3(), hit = new THREE.Vector3();
   let ptrSeen = -1e9, trailDirty = false;
   window.addEventListener('pointermove', e => { ptr.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ptrSeen = performance.now(); });
   function updateRibbon(now) {
     if (now - ptrSeen < 120) {
-      // cursor on a plane just in front of the objects
-      ray.set(ptr.x, ptr.y, 0.5).unproject(camera).sub(camera.position).normalize();
-      hit.copy(camera.position).addScaledVector(ray, (1.6 - camera.position.z) / ray.z);
+      // cursor on a plane 5 units in front of the lens
+      hit.set(ptr.x * 5 * TAN * asp, ptr.y * 5 * TAN, -5);
       tip.lerp(hit, trail.length ? 0.5 : 1);
       if (!trail.length || tip.distanceTo(trail[trail.length - 1]) > 0.03) { trail.push(tip.clone()); trailDirty = true; }
       if (trail.length > 46) trail.shift();
@@ -1122,19 +1231,75 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
     ribbon.geometry.dispose(); ribbon.geometry = g; ribbon.visible = true;
   }
 
-  const cam = new THREE.Vector3(), TAN = Math.tan(Math.PI / 12);
-  let asp = 1, narrow = false;
+  // closing shot: a glowing pedestal ring under each object
+  const padMat = glow(0);
+  const pads = objs.map(() => { const r = mk(new THREE.TorusGeometry(0.72, 0.008, 6, 120), padMat, rig); r.rotation.x = Math.PI / 2; return r; });
+
+  // studio spotlight on the backdrop; it follows the object across the screen
+  const sp = document.createElement('canvas'); sp.width = sp.height = 256;
+  const spx = sp.getContext('2d'), spg = spx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  spg.addColorStop(0, '#161c2e'); spg.addColorStop(0.5, '#090c16'); spg.addColorStop(1, '#000');
+  spx.fillStyle = spg; spx.fillRect(0, 0, 256, 256);
+  const spt = new THREE.CanvasTexture(sp); spt.colorSpace = THREE.SRGBColorSpace;
+  const spot = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: spt, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+  spot.position.z = -29.5; spot.renderOrder = -0.5; camera.add(spot);
+
+  // one camera shot per scroll panel: distance, yaw, pitch, where the object sits on screen (sx, sy in half-screens), look height
+  const SHOTS = [
+    { d: 7.2, yaw: -0.35, pitch: 0.07, sx: 0.36, sy: 0.04, ty: 0 },     // intro
+    { d: 6.4, yaw: 0.55, pitch: 0.12, sx: -0.38, sy: 0.02, ty: 0 },     // QCM, wide from the other side
+    { d: 3.8, yaw: 0.16, pitch: 0.02, sx: 0.38, sy: 0, ty: 0.42 },      // macro on the electrode
+    { d: 6.8, yaw: -0.7, pitch: -0.1, sx: 0.36, sy: 0, ty: 0 },         // StockSense from a low angle
+    { d: 5.6, yaw: 0.1, pitch: 0, sx: -0.36, sy: 0, ty: 0 },        // the screen head-on
+    { d: 7.6, yaw: 0.62, pitch: -0.04, sx: 0, sy: 0.26, ty: 0.2 },      // Kontra from board level
+    { d: 4.6, yaw: -0.95, pitch: 0.3, sx: 0.34, sy: 0, ty: 0.2 },       // over the black king's shoulder
+    { d: 7.6, yaw: 0.35, pitch: 0.3, sx: -0.42, sy: 0, ty: 0 },        // the galon from above
+    { d: 5.8, yaw: -0.3, pitch: 0.05, sx: 0.36, sy: 0, ty: -0.1 },      // macro on the label
+    { d: 6.4, yaw: 1.2, pitch: 0.1, sx: 0, sy: 0.24, ty: 0 },            // the coin nearly edge-on
+    { d: 5.8, yaw: 0.18, pitch: 0, sx: -0.36, sy: 0, ty: 0 },           // the coin's face
+    { d: 12.5, yaw: 0, pitch: 0.1, sx: 0, sy: 0.16, ty: 0 },            // line-up
+  ];
+  // each object owns a stretch of panels, and arrives and leaves its own way
+  const RANGE = [[0, 2.5], [2.5, 4.5], [4.5, 6.5], [6.5, 8.5], [8.5, 10.5]];
+  const ENTER = [[0, 0, -9], [0, -5.5, 0], [-9, 0, 0], [0, 6.5, 0], [9, 0, 0]];      // from depth, from below, sliding in, dropping, rolling in
+  const EXIT = [[4.5, 0.6, 6], [0, 6, 0], [9, 0, 0], [0, -6.5, 0], [0, 0, 0]];       // past the camera, up, sliding off, sinking
+  const SLOTS_W = [[-4.2, 0], [-2.1, 0], [0, 0], [2.1, 0], [4.2, 0]], SLOTS_N = [[-1.3, 1.2], [0, 1.2], [1.3, 1.2], [-0.65, -1.0], [0.65, -1.0]];
+
+  // labels pinned to points on the objects (model coordinates), shown in the close-up panels
+  const tagBox = document.getElementById('tags'), tags = [];
+  const tag = (obj, panel, at, text, o = {}) => {
+    const el = document.createElement(o.href ? 'a' : 'div');
+    el.className = `lbl${o.flip ? ' flip' : ''}${o.href ? ' name' : ''}`;
+    if (o.href) el.href = o.href; else el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = o.href ? text : `<b></b><i></i><span>${text}</span>`;
+    tagBox.append(el);
+    tags.push({ el, obj, panel, at: new THREE.Vector3(...at), node: o.href ? objs[obj] : objs[obj].children[0], flip: o.flip, name: !!o.href, on: false });
+  };
+  tag(0, 2, [0.25, 0.2, 0.04], 'Gold electrode', { flip: 1 });
+  tag(0, 2, [0.74, 0.74, 0.03], 'AT-cut quartz · 10 MHz', { flip: 1 });
+  tag(0, 2, [-1.08, -0.5, 0], 'Spring-clip lead', { flip: 1 });
+  tag(1, 4, [0.3, 0.62, 0.07], 'The loss, shown on purpose');
+  tag(1, 4, [0.1, -0.45, 0.07], '3,572 backtested trades');
+  tag(2, 6, [-0.66, 2.45, 0.66], 'Your claim', { flip: 1 });
+  tag(2, 6, [0.66, 2.45, -0.66], 'The opponent');
+  tag(3, 8, [0.3, -0.22, 0.62], 'One galon = 19 L', { flip: 1 });
+  tag(3, 8, [0.05, 1.1, 0.2], 'Sealed cap', { flip: 1 });
+  tag(4, 10, [0.35, 0.3, 0.08], 'A win pays 2R');
+  tag(4, 10, [0.7, -0.72, 0.08], 'Break-even at 33.3%');
+  [['QCM sensor', '#qcm'], ['StockSense', '#stocksense'], ['Kontra', '#kontra'], ['Depot Air WA', '#depot'], ['Trading lab', '#trading']]
+    .forEach(([name, href], i) => tag(i, 11, [0, -1.75, 0], name, { href }));
+
+  const TAN = Math.tan(Math.PI / 12);
+  let asp = 1, narrow = false, W = 1, H = 1;
   function fitCam() {
-    const w = host.clientWidth, h = host.clientHeight;
-    asp = w / h; narrow = asp < 0.8;
-    renderer.setSize(w, h, false);
-    const d = narrow ? Math.max(7.2, 5.7 / asp) : 7.2, visH = 2 * d * TAN;
+    W = host.clientWidth; H = host.clientHeight;
+    asp = W / H; narrow = asp < 0.8;
+    renderer.setSize(W, H, false);
     camera.aspect = asp; camera.updateProjectionMatrix();
-    cam.set(0, 0.5, d);
-    rig.position.set(narrow ? 0 : visH * asp * 0.17, narrow ? visH * 0.17 : 0.12, 0);
     backdrop.scale.set(2 * 30 * TAN * asp, 2 * 30 * TAN, 1);
-    const k = Math.min(DPR, 2048 / w);
-    bc.width = Math.round(w * k); bc.height = Math.round(h * k);
+    spot.scale.set(2 * 29.5 * TAN * Math.max(asp, 1) * 0.95, 2 * 29.5 * TAN * 1.5, 1);
+    const k = Math.min(DPR, 2048 / W);
+    bc.width = Math.round(W * k); bc.height = Math.round(H * k);
     bdDirty = true;
   }
   new ResizeObserver(fitCam).observe(host);
@@ -1159,52 +1324,67 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
   let visible = true;
   new IntersectionObserver(([en]) => { visible = en.isIntersecting; }).observe(host);
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const clock = new THREE.Clock(), smooth = v => v * v * (3 - 2 * v), out3 = v => 1 - Math.pow(1 - Math.min(1, v), 3);
-  let prevActive = -1, push = 0, prevT = 0;
+  const clock = new THREE.Clock(), look = new THREE.Vector3(), v3 = new THREE.Vector3();
+  const c01 = v => Math.min(1, Math.max(0, v)), smooth = v => { v = c01(v); return v * v * (3 - 2 * v); }, out3 = v => 1 - Math.pow(1 - c01(v), 3);
+  let prevT = 0, vis0 = 0;
 
   renderer.setAnimationLoop(() => {
     if (!visible) return;
-    const t = clock.getElapsedTime(), dt = Math.min(0.05, t - prevT), now = performance.now(), m = reduce ? 0 : 1;
+    const t = clock.getElapsedTime(), dt = Math.min(0.05, t - prevT), now = performance.now(), m = reduce ? 0 : 1, p = S.p;
     const k = reduce ? 1 : 1 - Math.exp(-dt * 3.4);   // time-based, so 60 Hz and 144 Hz screens animate the same
     prevT = t;
-    const active = Math.min(N - 1, Math.max(0, Math.round(S.p) - 1));
-    if (active !== prevActive) { if (prevActive >= 0) push = m; prevActive = active; }
-    push *= 0.95;
     if (!last) { vel *= 0.95; dragX += vel; tilt *= 0.96; }
     lean.x += (lean.tx - lean.x) * 0.05; lean.y += (lean.ty - lean.y) * 0.05;
 
     // backdrop: cross-fade the ghost number when the project changes
-    const wi = Math.round(S.p);
+    const wi = S.word ?? 0;
     if (wi !== wCur) { wPrev = wCur; wCur = wi; wT = reduce ? 1 : 0; bdDirty = true; }
     if (wT < 1) { wT = Math.min(1, wT + dt / 0.6); bdDirty = true; }
     if (bdDirty) { bdDirty = false; drawBackdrop(); }
 
     // oscillator trace behind the objects; it loses cycles as vapour loads the crystal
-    const hH = 26 * TAN, hW = hH * asp, amp = Math.min(host.clientHeight * 0.06, 46) / host.clientHeight * 2 * hH;
-    const cyc = 7.5 * (1 - S.mass / 3000 * 0.45), ph = m * now / 700, y0 = (0.5 - (narrow ? 0.34 : 0.5)) * 2 * hH;
-    for (let i = 0; i < SN; i++) { const u = i / (SN - 1); spos[i * 3] = (u * 2 - 1) * hW; spos[i * 3 + 1] = y0 + Math.sin(u * cyc * Math.PI * 2 - ph) * amp; }
+    const tH = 26 * TAN, tW = tH * asp, amp = Math.min(H * 0.06, 46) / H * 2 * tH;
+    const cyc = 7.5 * (1 - S.mass / 3000 * 0.45), ph = m * now / 700, y0 = (0.5 - (narrow ? 0.34 : 0.5)) * 2 * tH;
+    for (let i = 0; i < SN; i++) { const u = i / (SN - 1); spos[i * 3] = (u * 2 - 1) * tW; spos[i * 3 + 1] = y0 + Math.sin(u * cyc * Math.PI * 2 - ph) * amp; }
     sgeo.attributes.position.needsUpdate = true;
 
-    // camera: a slow drift with scroll and a gentle push-in after each switch, like a product film
-    camera.position.set(cam.x + m * (S.p % 1 - 0.5) * 0.4, cam.y, cam.z * (1 + 0.06 * push));
-    camera.lookAt(0, 0, 0);
+    // camera: blend the two nearest shots, so every panel has its own framing and the move between them follows the scroll
+    const i0 = Math.min(SHOTS.length - 1, Math.floor(p)), i1 = Math.min(SHOTS.length - 1, i0 + 1), f = smooth(p - i0);
+    const mix = key => SHOTS[i0][key] + (SHOTS[i1][key] - SHOTS[i0][key]) * f;
+    let d = mix('d');
+    if (narrow) d *= 1.5 + 0.2 * smooth((d - 3.5) / 2);   // phones need more distance, wide shots most of all
+    const yaw = mix('yaw') + lean.x * 0.25, pitch = mix('pitch') - lean.y * 0.2, sx = narrow ? 0 : mix('sx'), sy = narrow ? 0.34 : mix('sy');
+    const hH = d * TAN, hW = hH * asp, tx = -sx * hW, cy = Math.cos(yaw), sn = Math.sin(yaw), cp = Math.cos(pitch);
+    look.set(cy * tx, mix('ty') - sy * hH, -sn * tx);
+    camera.position.set(look.x + sn * cp * d, look.y + Math.sin(pitch) * d, look.z + cy * cp * d);
+    camera.lookAt(look);
+    spot.position.x = sx * 29.5 * TAN * asp; spot.position.y = sy * 29.5 * TAN;
 
+    // objects: scrubbed entrances and exits, then the line-up
+    const L = smooth((p - 10.5) / 0.5), sc = narrow ? 0.42 : 0.55, slots = narrow ? SLOTS_N : SLOTS_W;
     const bob = m * Math.sin(t * 0.9) * 0.03;
-    let shown = 0;
+    vis0 += ((now > (window.BOOT_END ?? 0) + 150 ? 1 : 0) - vis0) * k;   // the first object waits for the intro to open
+    let single = 0;
     objs.forEach((o, i) => {
-      vis[i] += ((i === active && now > (window.BOOT_END ?? 0) + 150 ? 1 : 0) - vis[i]) * k;   // the first object waits for the intro to open
-      const v = Math.min(1, Math.max(0, vis[i]));
-      o.visible = v > 0.003;
+      const [a, b] = RANGE[i], uin = i === 0 ? smooth(vis0) : smooth((p - a) / 0.4), uout = i === N - 1 ? 0 : smooth((p - (b - 0.4)) / 0.4);
+      const E = ENTER[i], X = EXIT[i], slot = slots[i];
+      let px = E[0] * (1 - uin) + X[0] * uout, py = E[1] * (1 - uin) + X[1] * uout, pz = E[2] * (1 - uin) + X[2] * uout, s = uin > 0.001 && uout < 0.999 ? 1 : 0;
+      if (L > 0) {
+        if (i < N - 1) { px = slot[0]; py = slot[1]; pz = 0; s = sc * L; }                       // earlier objects grow back in their slots
+        else { px += (slot[0] - px) * L; py += (slot[1] - py) * L; s = 1 + (sc - 1) * L; }      // the coin walks to its slot
+      }
+      o.visible = s > 0.002;
+      pads[i].position.set(slot[0], slot[1] - sc * 1.36, 0); pads[i].scale.setScalar(sc / 0.55);
       if (!o.visible) return;
-      const e = smooth(v), age = (now - (S.kick[KEYS[i]] || -1e9)) / 1000;
-      const kick = m * (age < 1.5 ? Math.sin(age * 9) * Math.exp(-age * 3.5) : 0);
-      shown = Math.max(shown, e);
-      o.scale.setScalar(Math.max(0.001, e));
-      o.position.y = (1 - e) * -0.5 + bob + kick * 0.08;
-      // turntable: a slow sweep left and right rather than a bounce
-      o.rotation.y = -0.35 + m * Math.sin(t * 0.4 + i) * 0.32 + (1 - e) * (i < active ? -1.6 : 1.6) + dragX + lean.x;
-      o.rotation.x = 0.06 + tilt + lean.y;
+      single = Math.max(single, uin * (1 - uout) * (1 - L));
+      const age = (now - (S.kick[KEYS[i]] || -1e9)) / 1000, kick = m * (age < 1.5 ? Math.sin(age * 9) * Math.exp(-age * 3.5) : 0);
+      o.scale.setScalar(s);
+      o.position.set(px, py + bob * (1 - L) + kick * 0.08, pz);
+      o.rotation.y = m * Math.sin(t * 0.4 + i) * (0.12 + 0.4 * L) + dragX + (i === 0 ? uout * 1.6 : 0);
+      o.rotation.x = tilt + (i === 1 ? (1 - uin) * -1.1 : 0);
+      o.rotation.z = i === 4 ? (1 - uin) * 5 : 0;
     });
+    padMat.opacity = L * 0.5;
 
     // per-object life
     if (objs[0].visible) {
@@ -1215,7 +1395,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
         for (let i = 0; i < n; i++) {
           const j = i * 3, r = Math.hypot(pos[j], pos[j + 1], pos[j + 2]);
           if (r < 0.3) { spawn(i); continue; }
-          const f = 1 - sp / r; pos[j] *= f; pos[j + 1] *= f; pos[j + 2] *= f;
+          const g = 1 - sp / r; pos[j] *= g; pos[j + 1] *= g; pos[j + 2] *= g;
         }
         geo.attributes.position.needsUpdate = true;
       }
@@ -1238,18 +1418,31 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
       if (S.flip !== undefined && S.flipAt !== A.flipAt) { A.flipAt = S.flipAt; A.prevFace = A.face; A.face = S.flip; }
       const age = (now - (A.flipAt || -1e9)) / 1000, e = out3(age / 1.8), turns = A.face === A.prevFace ? 6 : 5;
       A.coin.rotation.x = A.face * Math.PI + m * (1 - e) * turns * Math.PI;
-      A.coin.position.y = m * Math.sin(Math.PI * Math.min(1, age / 1.8)) * 0.45;
+      A.coin.position.y = m * Math.sin(Math.PI * c01(age / 1.8)) * 0.45;
     }
 
-    orbit.scale.setScalar(Math.max(0.001, shown));
+    orbit.scale.setScalar(Math.max(0.001, single));
     streak.rotation.z -= m * dt * 0.8;
     if (m) {
       for (let i = 0; i < DN; i++) { const j = i * 3 + 1; dpos[j] += dt * 0.06 * (1 + (i % 5) * 0.2); if (dpos[j] > 2.5) dpos[j] = -2.5; }
       dgeo.attributes.position.needsUpdate = true;
-      camera.updateMatrixWorld();
       updateRibbon(now);
     }
     renderer.render(scene, camera);
+
+    // pin the labels to their points on screen (after the render, so the matrices are current)
+    tags.forEach(g => {
+      const w = objs[g.obj].visible ? c01(1 - Math.abs(p - g.panel) * 2.4) : 0;
+      if (w < 0.01) { if (g.on) { g.el.style.opacity = 0; g.el.style.pointerEvents = 'none'; g.on = false; } return; }
+      v3.copy(g.at); g.node.localToWorld(v3).project(camera);
+      g.el.style.opacity = w.toFixed(2);
+      g.el.style.pointerEvents = g.name && w > 0.5 ? 'auto' : 'none';
+      g.w ??= g.el.offsetWidth;
+      let x = (v3.x * 0.5 + 0.5) * W;
+      if (!g.name) x = g.flip ? Math.max(x, g.w + 8) : Math.min(x, W - g.w - 8);   // keep the label on screen
+      g.el.style.transform = `translate(${x.toFixed(1)}px,${((-v3.y * 0.5 + 0.5) * H).toFixed(1)}px) translate(${g.name ? '-50%' : g.flip ? '-100%' : '0'},-50%)`;
+      g.on = true;
+    });
   });
 })();
 </script>
